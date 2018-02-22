@@ -49,7 +49,18 @@ void compress_input(const char * in_buf, unsigned long in_len, unsigned char * o
     }
 }
 
+void verify_exists (const char * filename) {
+    struct stat buffer;   
+    if (stat (filename, &buffer) != 0){
+        fprintf(stderr, "%s does not exist\n", filename);
+        exit(1);
+    }
+}
+
 void mqtt_setup(const char * server_cert, const char * client_cert, const char * client_key){
+    verify_exists(server_cert);
+    verify_exists(client_cert);
+    verify_exists(client_key);
     conn_opts.keepAliveInterval = 60;
     conn_opts.reliable = 0;
     conn_opts.cleansession = 1;
@@ -101,6 +112,7 @@ int main(int argc, char* argv[]){
     const unsigned int topic_prefix_len=strlen(topic_to_check)+strlen(cert_name)+1;
     topic_buf[MAX_TOPIC_LEN-1]=0;
     char * topic_buf_pos = topic_buf+topic_prefix_len;
+    fprintf(stderr, "connected\n");
     MQTTClient_connect(client, &conn_opts);
     for(;;){
         unsigned long compressed_len;

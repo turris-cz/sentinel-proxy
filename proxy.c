@@ -71,21 +71,21 @@ void mqtt_setup(MQTTClient_connectOptions * conn_opts, const char * server_cert,
 }
 
 int main(int argc, char* argv[]){
-    //TODO: default values must be adjusted
     const char * upstream_srv = (argc>1)?argv[1]:"ssl://sentinel.turris.cz:1883";
     const char * local_socket = (argc>2)?argv[2]:"ipc:///tmp/sentinel_pull.sock";
-    const char * server_cert_file = (argc>3)?argv[3]:"dev-ca/keys/ca.crt";
-    const char * client_cert_file = (argc>4)?argv[4]:"dev-ca/keys/dev-martin-petracek.crt";
-    const char * client_priv_key_file = (argc>5)?argv[5]:"dev-ca/keys/dev-martin-petracek.key";
-    printf("connecting to %s, listening on %s\n", upstream_srv, local_socket);
-    printf("server certificate %s, client certificate %s, client private key %s\n", server_cert_file, client_cert_file, client_priv_key_file);
+    const char * server_cert_file = (argc>3)?argv[3]:"/etc/sentinel/keys/ca.crt";
+    const char * client_cert_file = (argc>4)?argv[4]:"/etc/sentinel/keys/router.crt";
+    const char * client_priv_key_file = (argc>5)?argv[5]:"/etc/sentinel/keys/router.key";
+    fprintf(stderr, "connecting to %s, listening on %s\n", upstream_srv, local_socket);
+    fprintf(stderr, "server certificate %s, client certificate %s, client private key %s\n", server_cert_file, client_cert_file, client_priv_key_file);
     //get name from certificate
     char * cert_name=get_name_from_cert(client_cert_file);
+    //TODO: cert_name length should be checked (once its format is fixed)
     if (!cert_name) {
         fprintf(stderr, "can't get name from the certificate - or file not found\n");
         return 1;
     }
-    printf("got name from certificate: %s\n", cert_name);
+    fprintf(stderr, "got name from certificate: %s\n", cert_name);
     //prepare topic - topic to send is topic_to_check+cert_name+'/'+msg_topic
     //e.g., if topic_to_check is "sentinel/collect/", cert_name is "user" and msg_topic is "flow", topic should be "sentinel/collect/user/flow"
     //we prepare the fixed part (topic_to_check+cert_name+'/') here, just the msg_topic is copied by the recv_handler.
@@ -153,8 +153,7 @@ int main(int argc, char* argv[]){
             fprintf(stderr, "compress produced 0 bytes\n");
             goto recv_end;
         }
-        MQTTClient_yield();
-        MQTTClient_deliveryToken dt;
+        MQTTClient_yield(); //necessary to notice disconnect
         while (!MQTTClient_isConnected(client)){
             fprintf(stderr, "not connected to server, reconnecting...\n");
             sleep(1+mqtt_reconnect_wait);
@@ -162,7 +161,7 @@ int main(int argc, char* argv[]){
             if (MQTTClient_isConnected(client)) mqtt_reconnect_wait=0;
             else if(mqtt_reconnect_wait<=1024) mqtt_reconnect_wait*=2;
         }
-        int res=MQTTClient_publish(client, topic_to_send, compressed_len, (char*)compressed_buf, MQTT_QOS, 0, &dt);
+        int res=MQTTClient_publish(client, topic_to_send, compressed_len, (char*)compressed_buf, MQTT_QOS, 0, NULL);
         printf("publishing with topic %s - res %d\n", topic_to_send, res);
         recv_end:
             zmsg_destroy(&msg);

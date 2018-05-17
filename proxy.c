@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <getopt.h>
 #include <czmq.h>
 #include "zlib.h"
 #include <strings.h>
@@ -57,9 +58,6 @@ void verify_exists (const char * filename) {
 }
 
 void mqtt_setup(MQTTClient_connectOptions * conn_opts, const char * server_cert, const char * client_cert, const char * client_key){
-    verify_exists(server_cert);
-    verify_exists(client_cert);
-    verify_exists(client_key);
     conn_opts->retryInterval = 5;
     conn_opts->keepAliveInterval = MQTT_KEEPALIVE_INTERVAL;
     conn_opts->reliable = 0;
@@ -71,13 +69,47 @@ void mqtt_setup(MQTTClient_connectOptions * conn_opts, const char * server_cert,
 }
 
 int main(int argc, char* argv[]){
-    const char * upstream_srv = (argc>1)?argv[1]:"ssl://sentinel.turris.cz:1883";
-    const char * local_socket = (argc>2)?argv[2]:"ipc:///tmp/sentinel_pull.sock";
-    const char * server_cert_file = (argc>3)?argv[3]:"/etc/sentinel/keys/ca.crt";
-    const char * client_cert_file = (argc>4)?argv[4]:"/etc/sentinel/keys/router.crt";
-    const char * client_priv_key_file = (argc>5)?argv[5]:"/etc/sentinel/keys/router.key";
-    fprintf(stderr, "connecting to %s, listening on %s\n", upstream_srv, local_socket);
-    fprintf(stderr, "server certificate %s, client certificate %s, client private key %s\n", server_cert_file, client_cert_file, client_priv_key_file);
+    const char * upstream_srv = "ssl://sentinel.turris.cz:1883";
+    const char * local_socket = "ipc:///tmp/sentinel_pull.sock";
+    const char * ca_file = "/etc/sentinel/ca.crt";
+    const char * client_cert_file = "/etc/sentinel/router.crt";
+    const char * client_key_file = "/etc/sentinel/router.key";
+    char opt;
+    int option_index = 0;
+    static struct option long_options[] = {
+        {"server", required_argument, 0, 'S'},
+        {"local_socket", required_argument, 0, 's'},
+        {"ca", required_argument, 0, 'c'},
+        {"cert", required_argument, 0, 'C'},
+        {"key", required_argument, 0, 'K'},
+        {0, 0, 0, 0}
+    };
+    while ((opt = getopt_long(argc, argv, "S:s:", long_options, &option_index)) != (char)-1) {
+        switch (opt) {
+            case 'S':
+                upstream_srv = optarg;
+                break;
+            case 's':
+                local_socket = optarg;
+                break;
+            case 'c':
+                ca_file = optarg;
+                break;
+            case 'C':
+                client_cert_file = optarg;
+                break;
+            case 'K':
+                client_key_file = optarg;
+                break;
+            default: /* '?' */
+                fprintf(stderr, "Usage: %s [-S server] [-s local_socket] [--ca CA_file] [--cert cert_file] [--key key_file]\n", argv[0]);
+                exit(EXIT_FAILURE);
+        }
+    }
+    fprintf(stderr, "CA certificate %s, client certificate %s, client private key %s\n", ca_file, client_cert_file, client_key_file);
+    verify_exists(ca_file);
+    verify_exists(client_cert_file);
+    verify_exists(client_key_file);
     //get name from certificate
     char * cert_name=get_name_from_cert(client_cert_file);
     //TODO: cert_name length should be checked (once its format is fixed)
@@ -102,11 +134,12 @@ int main(int argc, char* argv[]){
     const size_t compressed_buf_size=((MAX_MSG_SIZE*1001)/1000+12+1);
     unsigned char * compressed_buf=(unsigned char*)malloc(compressed_buf_size);
     //MQTT initialization
+    fprintf(stderr, "connecting to %s, listening on %s\n", upstream_srv, local_socket);
     MQTTClient client;
     MQTTClient_connectOptions conn_opts = MQTTClient_connectOptions_initializer;
     MQTTClient_SSLOptions ssl_opts = MQTTClient_SSLOptions_initializer;
     conn_opts.ssl = &ssl_opts;
-    mqtt_setup(&conn_opts, server_cert_file, client_cert_file, client_priv_key_file);
+    mqtt_setup(&conn_opts, ca_file, client_cert_file, client_key_file);
     MQTTClient_create(&client, upstream_srv, cert_name, MQTTCLIENT_PERSISTENCE_NONE, NULL);
     MQTTClient_connect(client, &conn_opts);
     int mqtt_reconnect_wait = 0;
@@ -132,7 +165,7 @@ int main(int argc, char* argv[]){
             continue;
         }
         if (zmsg_size(msg)!=2){
-            fprintf(stderr, "received mallformed ZMQ message (expected 2 parts, got %d parts) -> ignoring it\n", zmsg_size(msg));
+            fprintf(stderr, "received mallformed ZMQ message (expected 2 parts, got %ld parts) -> ignoring it\n", zmsg_size(msg));
             goto recv_end;
         }
         zframe_t * msg_topic = zmsg_first(msg);

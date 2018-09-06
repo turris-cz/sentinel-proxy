@@ -49,23 +49,21 @@
         }                                 \
     } while (0)
 
+#define MAX_NAME_LEN 64
+
 char *get_name_from_cert(const char *filename) {
-    // get alternative name from X509 certificate
+    // get common name from subject of X509 certificate
     // this function must return valid name or exit the program
     X509 *cert = NULL;
     FILE *fp = fopen(filename, "r");
     CHECK_ERR_FATAL(!fp, "cannot open certificate file\n");
     PEM_read_X509(fp, &cert, NULL, NULL);
     fclose(fp);
+    CHECK_ERR_FATAL(!cert, "cannot read X509 certificate\n");
     // TODO: maybe do some aditional checks if it's sentinel CA? check issuer?
-    STACK_OF(GENERAL_NAME) *alt_names =
-        X509_get_ext_d2i(cert, NID_subject_alt_name, NULL, NULL);
-    CHECK_ERR_FATAL(!alt_names, "no alternative name in the certificate\n");
-    int alt_names_n = sk_GENERAL_NAME_num(alt_names);
-    CHECK_ERR_FATAL(alt_names_n != 1, "more alternative names in the certificate\n");
-    const GENERAL_NAME *current_name = sk_GENERAL_NAME_value(alt_names, 0);
-    char *ret = strdup((const char *)ASN1_STRING_data(current_name->d.dNSName));
-    sk_GENERAL_NAME_pop_free(alt_names, GENERAL_NAME_free);
+    char *ret = malloc(MAX_NAME_LEN);
+    X509_NAME_get_text_by_NID(X509_get_subject_name(cert), NID_commonName,
+                              ret, MAX_NAME_LEN);
     X509_free(cert);
     return ret;
 }

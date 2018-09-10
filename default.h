@@ -21,7 +21,7 @@
 
 #define DEFAULT_UPSTREAM_SRV "ssl://sentinel.turris.cz:1883"
 #define DEFAULT_LOCAL_SOCKET "ipc:///tmp/sentinel_pull.sock"
-#define DEFAULT_CA_FILE "/etc/sentinel/ca.crt"
+#define DEFAULT_CA_FILE "/etc/sentinel/ca.pem"
 #define DEFAULT_CERT_FILE "/etc/sentinel/mqtt_cert.pem"
 #define DEFAULT_KEY_FILE "/etc/sentinel/mqtt_key.pem"
 

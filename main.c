@@ -88,21 +88,21 @@ void mqtt_setup(MQTTClient_connectOptions *conn_opts, const char *server_cert,
     conn_opts->ssl->privateKey = client_key;
 }
 
-void mqtt_reconnect(MQTTClient *client, MQTTClient_connectOptions *conn_opts) {
+void mqtt_reconnect(MQTTClient client, MQTTClient_connectOptions *conn_opts) {
     int wait_time = 1;
     fprintf(stderr, "not connected to server, reconnecting...\n");
     MQTTClient_connect(&client, conn_opts);
     while (!MQTTClient_isConnected(client)) {
         fprintf(stderr, "...next try in %d seconds...\n", wait_time);
         sleep(wait_time);
-        MQTTClient_connect(&client, conn_opts);
+        MQTTClient_connect(client, conn_opts);
         if (wait_time <= 1024)
             wait_time *= 2;
     }
     fprintf(stderr, "reconnected\n");
 }
 
-void handle_message(MQTTClient *client, zmsg_t *msg, char *topic_buf,
+void handle_message(MQTTClient client, zmsg_t *msg, char *topic_buf,
                     unsigned topic_prefix_len) {
     static unsigned char compress_buf[COMPRESS_BUF_SIZE];
     CHECK_ERR(zmsg_size(msg) != 2, "ignoring mallformed message (%ld parts)\n",
@@ -177,8 +177,8 @@ void run_proxy(const char *upstream_srv, const char *local_socket,
         if (!msg)
             continue;
         if (!MQTTClient_isConnected(client))
-            mqtt_reconnect(&client, &conn_opts);
-        handle_message(&client, msg, topic_to_send, topic_prefix_len);
+            mqtt_reconnect(client, &conn_opts);
+        handle_message(client, msg, topic_to_send, topic_prefix_len);
         zmsg_destroy(&msg);
     }
     MQTTClient_disconnect(client, 0);

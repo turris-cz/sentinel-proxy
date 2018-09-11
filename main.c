@@ -117,8 +117,9 @@ void handle_message(MQTTClient client, zmsg_t *msg, char *topic_buf,
     CHECK_ERR(topic_len >= MAX_TOPIC_LEN, "ignoring too long topic %.*s\n",
               topic_len, topic_data);
     char *topic_buf_pos = topic_buf + topic_prefix_len;
-    strncpy(topic_buf_pos, topic_data + TOPIC_PREFIX_LEN, topic_len);
-    topic_buf_pos[topic_len] = 0;
+    strncpy(topic_buf_pos, topic_data + TOPIC_PREFIX_LEN,
+                  topic_len - TOPIC_PREFIX_LEN);
+    topic_buf_pos[topic_len - TOPIC_PREFIX_LEN] = 0;
     unsigned long compress_len = COMPRESS_BUF_SIZE;
     int rc = compress2(compress_buf, &compress_len, zframe_data(payload),
                        zframe_size(payload), COMPRESS_LEVEL);

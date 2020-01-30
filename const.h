@@ -20,11 +20,11 @@
 #define __SENTINEL_PROXY_CONST_H__
 
 #define MAX_TOPIC_LEN 256
-#define MAX_MSG_SIZE 1024 * 1024 * 2
+#define MAX_MSG_SIZE (1024 * 1024 * 2)
 #define MAX_WAITING_MESSAGES 50
 // mandatory prefix for ZMQ topic (is discarded elsewhere)
 #define TOPIC_PREFIX "sentinel/collect/"
-#define TOPIC_PREFIX_LEN (int)strlen(TOPIC_PREFIX)
+#define TOPIC_PREFIX_LEN strlen(TOPIC_PREFIX)
 // zlib compression levels: 1 is lowest (fastest), 9 is biggest (slowest)
 #define COMPRESS_LEVEL 9
 // QoS levels - see here:

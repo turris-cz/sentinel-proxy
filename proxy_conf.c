@@ -20,6 +20,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <argp.h>
 #include <string.h>
 
 #include "config.h"
@@ -44,46 +45,60 @@ static struct proxy_conf proxy_conf = {
     .custom_conf_file = false
 };
 
-void load_cli_opts(int argc, char *argv[], struct proxy_conf *conf) {
-    char opt;
-    int option_index = 0;
-    static struct option long_options[] = {
-        {"server", required_argument, 0, 'S'},
-        {"local_socket", required_argument, 0, 's'},
-        {"ca", required_argument, 0, 'c'},
-        {"cert", required_argument, 0, 'C'},
-        {"key", required_argument, 0, 'K'},
-        {0, 0, 0, 0}};
-    while ((opt = getopt_long(argc, argv, "S:s:", long_options,
-                              &option_index)) != (char)-1) {
-        switch (opt) {
-            case 'S':
-                conf->upstream_srv = optarg;
-                break;
-            case 's':
-                conf->local_socket = optarg;
-                break;
-            case 'c':
-                conf->ca_file = optarg;
-                break;
-            case 'C':
-                conf->client_cert_file = optarg;
-                break;
-            case 'K':
-                conf->client_key_file = optarg;
-                break;
-            default:
-                fprintf(
-                    stderr,
-                    "Usage: %s [-S server] [-s local_socket] [--ca CA_file] "
-                    "[--cert cert_file] [--key key_file]\n",
-                    argv[0]);
-                exit(EXIT_FAILURE);
+static error_t parse_opt (int key, char *arg, struct argp_state *state) {
+    struct proxy_conf *conf = state->input;
+
+    switch (key) {
+        case 'S':
+            conf->upstream_srv = arg;
+            break;
+        case 's':
+            conf->local_socket = arg;
+            break;
+        case 'c':
+            conf->ca_file = arg;
+            break;
+        case 'C':
+            conf->client_cert_file = arg;
+            break;
+        case 'K':
+            conf->client_key_file = arg;
+            break;
+        case 'f':
+            conf->config_file = arg;
+            conf->custom_conf_file = true;
+            break;
+        case ARGP_KEY_ARG:
+          if (state->arg_num >= 1)
+            /* Too many arguments. */
+            argp_usage(state);
+          break;
+
+        default:
+          return ARGP_ERR_UNKNOWN;
         }
-    }
-    fprintf(stderr,
-            "CA certificate %s, client certificate %s, client private key %s\n",
-            ca_file, client_cert_file, client_key_file);
+    return 0;
+}
+
+void load_cli_opts(int argc, char *argv[], struct proxy_conf *conf) {
+    // This function might be called multiple times and must be idempotent
+
+    /* Program documentation. */
+    static char doc[] = "Sentinel:Proxy - Turris:Sentinel data gateway";
+
+    static struct argp_option options[] = {
+        {"server",   'S', "server",       0,  "Sentinel server address" },
+        {"socket",   's', "socket",       0,  "Local ZMQ socket" },
+        {"ca",       'c', "ca_file",      0,  "Path to Sentinel CA file"},
+        {"cert",     'C', "cert_file",    0,  "Path to MQTT cert file"},
+        {"key",      'K', "key_file",     0,  "Path to MQTT key file"},
+        {"config",   'f', "config_file",  0,  "Path to config file"},
+        { 0 }
+    };
+
+    /* Our argp parser. */
+    static struct argp argp = { options, parse_opt, 0, doc };
+    argp_parse(&argp, argc, argv, 0, 0, conf);
 }
 
 const struct proxy_conf *load_conf(int argc, char *argv[]) {

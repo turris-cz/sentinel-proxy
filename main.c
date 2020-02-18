@@ -50,6 +50,9 @@
 
 #define MAX_NAME_LEN 64
 
+const char *argp_program_version = VERSION;
+const char *argp_program_bug_address = "<packaging@turris.cz>";
+
 char *get_name_from_cert(const char *filename) {
     // get common name from subject of X509 certificate
     // this function must return valid name or exit the program

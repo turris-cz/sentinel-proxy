@@ -21,16 +21,22 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <argp.h>
+#include <fcntl.h>
+#include <libconfig.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "config.h"
 #include "default.h"
 
 
-void verify_exists(const char *filename) {
-    struct stat tmp;
-    if (stat(filename, &tmp) != 0) {
-        fprintf(stderr, "%s does not exist\n", filename);
+bool is_accessible(const char *filename) {
+    return (access(filename, R_OK) == 0);
+}
+
+void verify_access(const char *filename) {
+    if (!is_accessible(filename)) {
+        fprintf(stderr, "%s can't be accessed\n", filename);
         exit(EXIT_FAILURE);
     }
 }
@@ -101,6 +107,28 @@ void load_cli_opts(int argc, char *argv[], struct proxy_conf *conf) {
     argp_parse(&argp, argc, argv, 0, 0, conf);
 }
 
+void load_config_file(const char *path, struct proxy_conf * conf) {
+    config_t cfg;
+    const char *tmp;
+
+    config_init(&cfg);
+
+    /* Read the file. If there is an error, report it and exit. */
+    if(! config_read_file(&cfg, path)){
+        fprintf(stderr, "error reading config file %s: %s:%d - %s\n",
+            path,
+            config_error_file(&cfg),
+            config_error_line(&cfg), config_error_text(&cfg)
+        );
+        config_destroy(&cfg);
+        exit(EXIT_FAILURE);
+    }
+
+    // Look for variables here
+
+    config_destroy(&cfg);
+}
+
 const struct proxy_conf *load_conf(int argc, char *argv[]) {
     // We load cli params first (to get config file path most notably) Then we
     // load config file if exists end is readable. If that is succesfull we have
@@ -114,9 +142,9 @@ const struct proxy_conf *load_conf(int argc, char *argv[]) {
                 proxy_conf.config_file);
     }
 
-    verify_exists(proxy_conf.ca_file);
-    verify_exists(proxy_conf.client_cert_file);
-    verify_exists(proxy_conf.client_key_file);
+    verify_access(proxy_conf.ca_file);
+    verify_access(proxy_conf.client_cert_file);
+    verify_access(proxy_conf.client_key_file);
 
     fprintf(
         stderr,

@@ -122,24 +122,42 @@ void handle_message(MQTTClient client, zmsg_t *msg, char *topic_buf,
                        MQTT_QOS, 0, NULL);
 }
 
+static void append_topic(char **topic, size_t *topic_size, const char *text) {
+    unsigned len = strlen(text);
+    if (*topic_size < len + 1){
+        fprintf(stderr, "failed to create message topic");
+        exit(EXIT_FAILURE);
+    }
+    strncpy(*topic, text, *topic_size);
+    *topic += len;
+    *topic_size -= len;
+}
+
+void prepare_topic(char *topic, size_t topic_size,
+                   const char *cert_name){
+    // topic to send is topic_prefix+cert_name+'/'+msg_topic
+    // e.g., if topic_prefix is "sentinel/collect/", cert_name is "user",
+    // and msg_topic is "flow", topic should be:
+    // "sentinel/collect/user/flow".
+    // We prepare the fixed part (topic_prefix+cert_name+'/')
+    // here, just the msg_topic is copied in handle_message.
+    append_topic(&topic, &topic_size, TOPIC_PREFIX);
+    append_topic(&topic, &topic_size, cert_name);
+    append_topic(&topic, &topic_size, "/");
+}
+
 void run_proxy(const struct proxy_conf *conf) {
     // get name from certificate
     char *cert_name = get_name_from_cert(conf->client_cert_file);
     assert(cert_name);
     // TODO: cert_name length should be checked (once its format is fixed)
     fprintf(stderr, "got name from certificate: %s\n", cert_name);
-    // prepare topic
-    // topic to send is topic_prefix+cert_name+'/'+msg_topic e.g., if
-    // topic_prefix is "sentinel/collect/", cert_name is "user" and msg_topic
-    // is "flow", topic should be "sentinel/collect/user/flow" we prepare the
-    // fixed part (topic_prefix+cert_name+'/') here, just the msg_topic is
-    // copied in handle_message.
+
     unsigned topic_prefix_len = TOPIC_PREFIX_LEN + strlen(cert_name) + 1;
     char *topic_to_send = malloc(topic_prefix_len + MAX_TOPIC_LEN);
-    strncpy(topic_to_send, TOPIC_PREFIX, TOPIC_PREFIX_LEN);
-    strcpy(topic_to_send + TOPIC_PREFIX_LEN, cert_name);
-    topic_to_send[TOPIC_PREFIX_LEN + strlen(cert_name)] = '/';
-    topic_to_send[TOPIC_PREFIX_LEN + strlen(cert_name) + 1] = 0;
+    prepare_topic(topic_to_send, topic_prefix_len + MAX_TOPIC_LEN,
+                  cert_name);
+
     // MQTT initialization
     fprintf(stderr, "connecting to %s, listening on %s\n", conf->upstream_srv,
             conf->local_socket);

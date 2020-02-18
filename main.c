@@ -134,15 +134,19 @@ static void append_topic(char **topic, size_t *topic_size, const char *text) {
 }
 
 void prepare_topic(char *topic, size_t topic_size,
-                   const char *cert_name){
-    // topic to send is topic_prefix+cert_name+'/'+msg_topic
+                   const char *cert_name, const char *device_token){
+    // topic to send is topic_prefix+cert_name+'/'+device_token+'/'+msg_topic
     // e.g., if topic_prefix is "sentinel/collect/", cert_name is "user",
+    // device_token is:
+    // "ad38f637a0ea50b7ee49dd704fa4aad894f2dccadc15b37cbb16db0c362d73a9and"
     // and msg_topic is "flow", topic should be:
-    // "sentinel/collect/user/flow".
-    // We prepare the fixed part (topic_prefix+cert_name+'/')
+    // "sentinel/collect/user/ad38f ... 2d73a9/flow".
+    // We prepare the fixed part (topic_prefix+cert_name+'/'+device_token+'/')
     // here, just the msg_topic is copied in handle_message.
     append_topic(&topic, &topic_size, TOPIC_PREFIX);
     append_topic(&topic, &topic_size, cert_name);
+    append_topic(&topic, &topic_size, "/");
+    append_topic(&topic, &topic_size, device_token);
     append_topic(&topic, &topic_size, "/");
 }
 
@@ -153,10 +157,11 @@ void run_proxy(const struct proxy_conf *conf) {
     // TODO: cert_name length should be checked (once its format is fixed)
     fprintf(stderr, "got name from certificate: %s\n", cert_name);
 
-    unsigned topic_prefix_len = TOPIC_PREFIX_LEN + strlen(cert_name) + 1;
+    unsigned topic_prefix_len = TOPIC_PREFIX_LEN + strlen(cert_name) + 1
+                                + DEVICE_TOKEN_LEN + 1;
     char *topic_to_send = malloc(topic_prefix_len + MAX_TOPIC_LEN);
     prepare_topic(topic_to_send, topic_prefix_len + MAX_TOPIC_LEN,
-                  cert_name);
+                  cert_name, conf->device_token);
 
     // MQTT initialization
     fprintf(stderr, "connecting to %s, listening on %s\n", conf->upstream_srv,

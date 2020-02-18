@@ -1,2 +1,2 @@
 bin_PROGRAMS = sentinel_proxy
-sentinel_proxy_SOURCES = main.c
+sentinel_proxy_SOURCES = main.c proxy_conf.c

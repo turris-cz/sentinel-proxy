@@ -1,6 +1,6 @@
 /*
  *  Turris:Sentinel Proxy - Main MQTT gateway to Sentinel infrastructure
- *  Copyright (C) 2018 CZ.NIC z.s.p.o. (https://www.nic.cz/)
+ *  Copyright (C) 2018-2020 CZ.NIC z.s.p.o. (https://www.nic.cz/)
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,12 +21,11 @@
 #include <openssl/ssl.h>
 #include <openssl/x509v3.h>
 #include <stdio.h>
-#include <strings.h>
 #include <zlib.h>
 #include "MQTTClient.h"
 
-#include "const.h"
-#include "default.h"
+#include "config.h"
+#include "proxy_conf.h"
 
 // buffer for compressed data
 // zlib doc: "Upon entry, destLen is the total size of the destination
@@ -66,14 +65,6 @@ char *get_name_from_cert(const char *filename) {
                               ret, MAX_NAME_LEN);
     X509_free(cert);
     return ret;
-}
-
-void verify_exists(const char *filename) {
-    struct stat tmp;
-    if (stat(filename, &tmp) != 0) {
-        fprintf(stderr, "%s does not exist\n", filename);
-        exit(EXIT_FAILURE);
-    }
 }
 
 void mqtt_setup(MQTTClient_connectOptions *conn_opts, const char *server_cert,
@@ -128,11 +119,9 @@ void handle_message(MQTTClient client, zmsg_t *msg, char *topic_buf,
                        MQTT_QOS, 0, NULL);
 }
 
-void run_proxy(const char *upstream_srv, const char *local_socket,
-               const char *ca_file, const char *client_cert_file,
-               const char *client_key_file) {
+void run_proxy(const struct proxy_conf *conf) {
     // get name from certificate
-    char *cert_name = get_name_from_cert(client_cert_file);
+    char *cert_name = get_name_from_cert(conf->client_cert_file);
     assert(cert_name);
     // TODO: cert_name length should be checked (once its format is fixed)
     fprintf(stderr, "got name from certificate: %s\n", cert_name);
@@ -149,14 +138,15 @@ void run_proxy(const char *upstream_srv, const char *local_socket,
     topic_to_send[TOPIC_PREFIX_LEN + strlen(cert_name)] = '/';
     topic_to_send[TOPIC_PREFIX_LEN + strlen(cert_name) + 1] = 0;
     // MQTT initialization
-    fprintf(stderr, "connecting to %s, listening on %s\n", upstream_srv,
-            local_socket);
+    fprintf(stderr, "connecting to %s, listening on %s\n", conf->upstream_srv,
+            conf->local_socket);
     MQTTClient client;
     MQTTClient_connectOptions conn_opts = MQTTClient_connectOptions_initializer;
     MQTTClient_SSLOptions ssl_opts = MQTTClient_SSLOptions_initializer;
     conn_opts.ssl = &ssl_opts;
-    mqtt_setup(&conn_opts, ca_file, client_cert_file, client_key_file);
-    MQTTClient_create(&client, upstream_srv, cert_name,
+    mqtt_setup(&conn_opts, conf->ca_file, conf->client_cert_file,
+               conf->client_key_file);
+    MQTTClient_create(&client, conf->upstream_srv, cert_name,
                       MQTTCLIENT_PERSISTENCE_NONE, NULL);
     MQTTClient_connect(client, &conn_opts);
     // ZMQ initialization
@@ -164,7 +154,7 @@ void run_proxy(const char *upstream_srv, const char *local_socket,
     assert(receiver);
     zsock_set_maxmsgsize(receiver, MAX_MSG_SIZE);
     zsock_set_rcvhwm(receiver, MAX_WAITING_MESSAGES);
-    zsock_bind(receiver, "%s", local_socket);
+    zsock_bind(receiver, "%s", conf->local_socket);
     zpoller_t *poller = zpoller_new(receiver, NULL);
     assert(poller);
     while (true) {
@@ -191,54 +181,7 @@ void run_proxy(const char *upstream_srv, const char *local_socket,
 }
 
 int main(int argc, char *argv[]) {
-    const char *upstream_srv = DEFAULT_UPSTREAM_SRV;
-    const char *local_socket = DEFAULT_LOCAL_SOCKET;
-    const char *ca_file = DEFAULT_CA_FILE;
-    const char *client_cert_file = DEFAULT_CERT_FILE;
-    const char *client_key_file = DEFAULT_KEY_FILE;
-    char opt;
-    int option_index = 0;
-    static struct option long_options[] = {
-        {"server", required_argument, 0, 'S'},
-        {"local_socket", required_argument, 0, 's'},
-        {"ca", required_argument, 0, 'c'},
-        {"cert", required_argument, 0, 'C'},
-        {"key", required_argument, 0, 'K'},
-        {0, 0, 0, 0}};
-    while ((opt = getopt_long(argc, argv, "S:s:", long_options,
-                              &option_index)) != (char)-1) {
-        switch (opt) {
-            case 'S':
-                upstream_srv = optarg;
-                break;
-            case 's':
-                local_socket = optarg;
-                break;
-            case 'c':
-                ca_file = optarg;
-                break;
-            case 'C':
-                client_cert_file = optarg;
-                break;
-            case 'K':
-                client_key_file = optarg;
-                break;
-            default:
-                fprintf(
-                    stderr,
-                    "Usage: %s [-S server] [-s local_socket] [--ca CA_file] "
-                    "[--cert cert_file] [--key key_file]\n",
-                    argv[0]);
-                exit(EXIT_FAILURE);
-        }
-    }
-    fprintf(stderr,
-            "CA certificate %s, client certificate %s, client private key %s\n",
-            ca_file, client_cert_file, client_key_file);
-    verify_exists(ca_file);
-    verify_exists(client_cert_file);
-    verify_exists(client_key_file);
-    run_proxy(upstream_srv, local_socket, ca_file, client_cert_file,
-              client_key_file);
+    const struct proxy_conf *proxy_conf = load_conf(argc, argv);
+    run_proxy(proxy_conf);
     return 0;
 }

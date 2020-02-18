@@ -20,6 +20,7 @@
 #define __SENTINEL_PROXY_CONST_H__
 
 #define MAX_TOPIC_LEN 256
+#define DEVICE_TOKEN_LEN 64
 #define MAX_MSG_SIZE (1024 * 1024 * 2)
 #define MAX_WAITING_MESSAGES 50
 // mandatory prefix for ZMQ topic (is discarded elsewhere)

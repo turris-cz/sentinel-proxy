@@ -41,12 +41,24 @@ void verify_access(const char *filename) {
     }
 }
 
+void verify_device_token(const char *device_token, char *name) {
+    if (device_token[0] == '\0'){
+        fprintf(stderr, "device_token must be specified\n");
+        exit(EXIT_FAILURE);
+    }
+    if (strlen(device_token) != 64){
+        fprintf(stderr, "device_token must be 64 characters long\n");
+        exit(EXIT_FAILURE);
+    }
+}
+
 static struct proxy_conf proxy_conf = {
     .upstream_srv = DEFAULT_UPSTREAM_SRV,
     .local_socket = DEFAULT_LOCAL_SOCKET,
     .ca_file = DEFAULT_CA_FILE,
     .client_cert_file = DEFAULT_CERT_FILE,
     .client_key_file = DEFAULT_KEY_FILE,
+    .device_token[0] = '\0',
     .config_file = DEFAULT_CONFIG_FILE,
     .custom_conf_file = false
 };
@@ -69,6 +81,9 @@ static error_t parse_opt (int key, char *arg, struct argp_state *state) {
             break;
         case 'K':
             conf->client_key_file = arg;
+            break;
+        case 't':
+            strncpy(conf->device_token, arg, DEVICE_TOKEN_LEN + 1);
             break;
         case 'f':
             conf->config_file = arg;
@@ -98,6 +113,7 @@ void load_cli_opts(int argc, char *argv[], struct proxy_conf *conf) {
         {"ca",       'c', "ca_file",      0,  "Path to Sentinel CA file"},
         {"cert",     'C', "cert_file",    0,  "Path to MQTT cert file"},
         {"key",      'K', "key_file",     0,  "Path to MQTT key file"},
+        {"token",    't', "device_token", 0,  "Sentinel device token"},
         {"config",   'f', "config_file",  0,  "Path to config file"},
         { 0 }
     };
@@ -124,7 +140,8 @@ void load_config_file(const char *path, struct proxy_conf * conf) {
         exit(EXIT_FAILURE);
     }
 
-    // Look for variables here
+    config_lookup_string(&cfg, "device_token", &tmp);
+    strncpy(conf->device_token, tmp, DEVICE_TOKEN_LEN + 1);
 
     config_destroy(&cfg);
 }
@@ -142,6 +159,7 @@ const struct proxy_conf *load_conf(int argc, char *argv[]) {
                 proxy_conf.config_file);
     }
 
+    verify_device_token(proxy_conf.device_token, argv[0]);
     verify_access(proxy_conf.ca_file);
     verify_access(proxy_conf.client_cert_file);
     verify_access(proxy_conf.client_key_file);

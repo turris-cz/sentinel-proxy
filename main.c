@@ -193,8 +193,12 @@ void run_proxy(const struct proxy_conf *conf) {
         zmsg_t *msg = zmsg_recv(receiver);
         if (!msg)
             continue;
-        if (!MQTTClient_isConnected(client))
+        if (!MQTTClient_isConnected(client)){
+            MQTTClient_destroy(&client);
+            MQTTClient_create(&client, conf->upstream_srv, cert_name,
+                              MQTTCLIENT_PERSISTENCE_NONE, NULL);
             mqtt_reconnect(client, &conn_opts);
+        }
         handle_message(client, msg, topic_to_send, topic_prefix_len);
         zmsg_destroy(&msg);
     }

@@ -1,4 +1,4 @@
-AC_INIT([sentinel-proxy], [1.2], [])
+AC_INIT([sentinel-proxy], [1.2.1], [])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 AC_PROG_CC
 AC_CONFIG_HEADERS([config.h])

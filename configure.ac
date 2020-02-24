@@ -1,4 +1,4 @@
-AC_INIT([sentinel-proxy], [1.2.1], [])
+AC_INIT([sentinel-proxy], [1.3], [])
 
 AM_INIT_AUTOMAKE([foreign -Wall -Wno-portability])
 AC_PROG_CC

@@ -42,17 +42,6 @@ void verify_access(const char *filename) {
     }
 }
 
-void verify_device_token(const char *device_token, char *name) {
-    if (device_token[0] == '\0'){
-        fprintf(stderr, "device_token must be specified\n");
-        exit(EXIT_FAILURE);
-    }
-    if (strlen(device_token) != 64){
-        fprintf(stderr, "device_token must be 64 characters long\n");
-        exit(EXIT_FAILURE);
-    }
-}
-
 static struct proxy_conf proxy_conf = {
     .upstream_srv = DEFAULT_UPSTREAM_SRV,
     .local_socket = DEFAULT_LOCAL_SOCKET,
@@ -160,7 +149,10 @@ const struct proxy_conf *load_conf(int argc, char *argv[]) {
                 proxy_conf.config_file);
     }
 
-    verify_device_token(proxy_conf.device_token, argv[0]);
+    int verify_status = device_token_verify(proxy_conf.device_token);
+    fprintf(stderr, "%s\n", device_token_state_msg(verify_status));
+    if (verify_status)
+        exit(EXIT_FAILURE);
     verify_access(proxy_conf.ca_file);
     verify_access(proxy_conf.client_cert_file);
     verify_access(proxy_conf.client_key_file);

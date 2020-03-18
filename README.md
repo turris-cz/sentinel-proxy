@@ -10,6 +10,12 @@ Sentinel-proxy sends messages received over ZMQ to Sentinel server (over MQTT).
  - [libpaho-mqtt](https://github.com/eclipse/paho.mqtt.c)
  - [libconfig](https://github.com/hyperrealm/libconfig)
 
+## Build dependencies
+
+ - autotools
+ - [libtool](https://www.gnu.org/software/libtool/)
+ - [pkg-config](https://www.freedesktop.org/wiki/Software/pkg-config/)
+
 ## Build instructions for Autotools
 
 ```

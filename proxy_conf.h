@@ -20,6 +20,7 @@
 #define __SENTINEL_PROXY_PROXY_CONF_H__
 
 #include <stdbool.h>
+#include "device_token.h"
 #include "const.h"
 
 struct proxy_conf {

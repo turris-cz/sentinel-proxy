@@ -28,6 +28,7 @@
 
 #include "config.h"
 #include "default.h"
+#include "device_token.h"
 
 
 bool is_accessible(const char *filename) {

@@ -1,15 +1,15 @@
 AC_INIT([sentinel-proxy], [1.2.1], [])
-AM_INIT_AUTOMAKE([-Wall -Werror foreign])
+
+AM_INIT_AUTOMAKE([foreign -Wall -Wno-portability])
 AC_PROG_CC
-AC_CONFIG_HEADERS([config.h])
-AC_CONFIG_FILES([
-		  Makefile
-		   ])
-AC_CHECK_LIB(crypto, PEM_read_X509, , [echo "Cannot find libcrypto"; exit -1])
-AC_CHECK_LIB(z, compress2, , [echo "Cannot find libz"; exit -1])
-AC_CHECK_LIB(czmq, zsock_new, , [echo "Cannot find libczmq"; exit -1])
-AC_CHECK_LIB(paho-mqtt3cs, MQTTClient_create, , [echo "Cannot find libpaho-mqtt"; exit -1])
-AC_CHECK_LIB(config, config_lookup_string, , [echo "Cannot find libconfig"; exit -1])
+AM_PROG_AR
+LT_INIT
+
+PKG_CHECK_MODULES([LIBCRYPTO], [libcrypto])
+PKG_CHECK_MODULES([ZLIB], [zlib])
+PKG_CHECK_MODULES([LIBCZMQ], [libczmq])
+PKG_CHECK_MODULES([LIBCONFIG], [libconfig])
+AC_CHECK_LIB(paho-mqtt3cs, MQTTClient_create, , AC_MSG_ERROR([Cannot find libpaho-mqtt]))
 
 dnl Check if we have argp available from our libc otherwise check for standalone version
 AC_LINK_IFELSE(
@@ -22,4 +22,9 @@ AC_ARG_VAR([defconfig], [default path to the configuration file])
 AS_IF([test -z "${defconfig}"], [defconfig="/tmp/etc/sentinel-proxy.cfg"])
 AC_DEFINE_UNQUOTED([DEFAULT_CONFIG_FILE], ["${defconfig}"],
 	[Default path to the configuration file])
+
+
+AC_CONFIG_HEADERS([config.h])
+AC_CONFIG_FILES([Makefile])
+
 AC_OUTPUT

@@ -125,7 +125,7 @@ void load_cli_opts(int argc, char *argv[], struct proxy_conf *conf) {
 
 void load_config_file(const char *path, struct proxy_conf * conf) {
     config_t cfg;
-    const char *tmp;
+    const char *tmp="";
 
     config_init(&cfg);
 

@@ -184,7 +184,10 @@ void run_proxy(const struct proxy_conf *conf) {
     zpoller_t *poller = zpoller_new(receiver, NULL);
     assert(poller);
     while (true) {
-        zpoller_wait(poller, (MQTT_KEEPALIVE_INTERVAL + 1) * 1000);
+#if MQTT_KEEPALIVE_INTERVAL < 2
+#error MQTT_KEEPALIVE_INTERVAL has to be bigger then 1 - half is non-zero!!!
+#endif
+        zpoller_wait(poller, (MQTT_KEEPALIVE_INTERVAL / 2) * 1000);
         if (zpoller_terminated(poller))
             break;
         MQTTClient_yield();

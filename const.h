@@ -30,6 +30,6 @@
 // QoS levels - see here:
 // https://www.hivemq.com/blog/mqtt-essentials-part-6-mqtt-quality-of-service-levels
 #define MQTT_QOS 0
-#define MQTT_KEEPALIVE_INTERVAL 60  // seconds
+#define MQTT_KEEPALIVE_INTERVAL 60  // seconds - needs to be bigger than 2
 
 #endif /*__SENTINEL_PROXY_CONST_H__*/

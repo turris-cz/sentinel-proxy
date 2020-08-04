@@ -202,7 +202,9 @@ void run_proxy(const struct proxy_conf *conf) {
         if (zpoller_expired(poller))
             continue;
         zmsg_t *msg = zmsg_recv(receiver);
-        if (!msg)
+	// MQTT should be connected as we checked earlier and poller didn't
+	// expired nor terminated, but better safe than sorry
+        if (!msg || !MQTTClient_isConnected(client))
             continue;
         handle_message(client, msg, topic_to_send, topic_prefix_len);
         zmsg_destroy(&msg);

@@ -24,14 +24,14 @@
 #include "const.h"
 
 struct proxy_conf {
-    const char *upstream_srv;
-    const char *local_socket;
-    const char *ca_file;
-    const char *client_cert_file;
-    const char *client_key_file;
-    char device_token[DEVICE_TOKEN_LEN + 1];
-    const char *config_file;
-    bool custom_conf_file;
+	const char *upstream_srv;
+	const char *local_socket;
+	const char *ca_file;
+	const char *client_cert_file;
+	const char *client_key_file;
+	char device_token[DEVICE_TOKEN_LEN + 1];
+	const char *config_file;
+	bool custom_conf_file;
 };
 
 const struct proxy_conf *load_conf(int argc, char *argv[]);

@@ -210,7 +210,7 @@ void run_proxy(const struct proxy_conf *conf) {
 
 int main(int argc, char *argv[]) {
 	struct proxy_conf proxy_conf = {
-		.upstream_srv = DEFAULT_UPSTREAM_SRV,
+		.upstream_srv = DEFAULT_SERVER,
 		.local_socket = DEFAULT_LOCAL_SOCKET,
 		.ca_file = DEFAULT_CA_FILE,
 		.client_cert_file = DEFAULT_CERT_FILE,

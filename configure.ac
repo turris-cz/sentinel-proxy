@@ -23,6 +23,30 @@ AS_IF([test -z "${defconfig}"], [defconfig="/tmp/etc/sentinel-proxy.cfg"])
 AC_DEFINE_UNQUOTED([DEFAULT_CONFIG_FILE], ["${defconfig}"],
 	[Default path to the configuration file])
 
+AC_ARG_VAR([defserver], [default Sentinel server])
+AS_IF([test -z "${defserver}"], [defserver="ssl://sentinel.turris.cz:1883"])
+AC_DEFINE_UNQUOTED([DEFAULT_SERVER], ["${defserver}"],
+	[Default Sentinel server])
+
+AC_ARG_VAR([defsocket], [default path to local socket])
+AS_IF([test -z "${defsocket}"], [defsocket="ipc:///tmp/sentinel_pull.sock"])
+AC_DEFINE_UNQUOTED([DEFAULT_LOCAL_SOCKET], ["${defsocket}"],
+	[Default path to local socket])
+
+AC_ARG_VAR([defca], [default path to CA certificate file])
+AS_IF([test -z "${defca}"], [defca="/etc/sentinel/ca.pem"])
+AC_DEFINE_UNQUOTED([DEFAULT_CA_FILE], ["${defca}"],
+	[Default path to CA certificate file])
+
+AC_ARG_VAR([defcert], [default path to client certificate file])
+AS_IF([test -z "${defcert}"], [defcert="/etc/sentinel/mqtt_cert.pem"])
+AC_DEFINE_UNQUOTED([DEFAULT_CERT_FILE], ["${defcert}"],
+	[Default path to client certificate file])
+
+AC_ARG_VAR([defkey], [default path to client key file])
+AS_IF([test -z "${defkey}"], [defkey="/etc/sentinel/mqtt_key.pem"])
+AC_DEFINE_UNQUOTED([DEFAULT_KEY_FILE], ["${defkey}"],
+	[Default path to client key file])
 
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([Makefile])

@@ -27,6 +27,18 @@
 #include "config.h"
 #include "proxy_conf.h"
 
+#define MAX_TOPIC_LEN 256
+#define MAX_MSG_SIZE (1024 * 1024 * 2)
+#define MAX_WAITING_MESSAGES 50
+// mandatory prefix for ZMQ topic (is discarded elsewhere)
+#define TOPIC_PREFIX "sentinel/collect/"
+#define TOPIC_PREFIX_LEN strlen(TOPIC_PREFIX)
+// zlib compression levels: 1 is lowest (fastest), 9 is biggest (slowest)
+#define COMPRESS_LEVEL 9
+// QoS levels - see here:
+// https://www.hivemq.com/blog/mqtt-essentials-part-6-mqtt-quality-of-service-levels
+#define MQTT_QOS 0
+#define MQTT_KEEPALIVE_INTERVAL 60  // seconds
 // buffer for compressed data
 // zlib doc: "Upon entry, destLen is the total size of the destination
 // buffer, which must be at least 0.1% larger than sourceLen plus 12 bytes."

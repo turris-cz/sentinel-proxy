@@ -50,8 +50,6 @@
 
 #define MAX_NAME_LEN 64
 
-const char *argp_program_version = VERSION;
-const char *argp_program_bug_address = "<packaging@turris.cz>";
 
 char *get_name_from_cert(const char *filename) {
     // get common name from subject of X509 certificate
@@ -211,7 +209,17 @@ void run_proxy(const struct proxy_conf *conf) {
 }
 
 int main(int argc, char *argv[]) {
-    const struct proxy_conf *proxy_conf = load_conf(argc, argv);
-    run_proxy(proxy_conf);
-    return 0;
+	struct proxy_conf proxy_conf = {
+		.upstream_srv = DEFAULT_UPSTREAM_SRV,
+		.local_socket = DEFAULT_LOCAL_SOCKET,
+		.ca_file = DEFAULT_CA_FILE,
+		.client_cert_file = DEFAULT_CERT_FILE,
+		.client_key_file = DEFAULT_KEY_FILE,
+		.device_token[0] = '\0',
+		.config_file = DEFAULT_CONFIG_FILE,
+		.custom_conf_file = false
+	};
+	load_conf(argc, argv, &proxy_conf);
+	run_proxy(&proxy_conf);
+	return 0;
 }

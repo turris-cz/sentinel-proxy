@@ -63,7 +63,9 @@
 #define MAX_NAME_LEN 64
 
 
-char *get_name_from_cert(const char *filename) {
+// It alocates memory and returns pointer to it.
+// Caller is responsible for its freeing.
+static char *get_name_from_cert(const char *filename) {
 	// get common name from subject of X509 certificate
 	// this function must return valid name or exit the program
 	X509 *cert = NULL;
@@ -73,10 +75,12 @@ char *get_name_from_cert(const char *filename) {
 	fclose(fp);
 	CHECK_ERR_FATAL(!cert, "cannot read X509 certificate\n");
 	// TODO: maybe do some aditional checks if it's sentinel CA? check issuer?
-	char *ret = malloc(MAX_NAME_LEN);
+	char *ret = malloc(CERT_NAME_MAX_LEN);
+	ret[0] = 0;
 	X509_NAME_get_text_by_NID(X509_get_subject_name(cert), NID_commonName,
-							  ret, MAX_NAME_LEN);
+		ret, CERT_NAME_MAX_LEN);
 	X509_free(cert);
+	CHECK_ERR_FATAL(!strlen(ret), "couldn't get name from cert\n");
 	return ret;
 }
 

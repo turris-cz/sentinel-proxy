@@ -84,16 +84,17 @@ static char *get_name_from_cert(const char *filename) {
 	return ret;
 }
 
-void mqtt_setup(MQTTClient_connectOptions *conn_opts, const char *server_cert,
-				const char *client_cert, const char *client_key) {
+static void mqtt_setup(MQTTClient_connectOptions *conn_opts,
+	const struct proxy_conf *conf) {
 	conn_opts->retryInterval = 5;
 	conn_opts->keepAliveInterval = MQTT_KEEPALIVE_INTERVAL;
 	conn_opts->reliable = 0;
 	conn_opts->cleansession = 1;
 	conn_opts->ssl->enableServerCertAuth = 1;
-	conn_opts->ssl->trustStore = server_cert;
-	conn_opts->ssl->keyStore = client_cert;
-	conn_opts->ssl->privateKey = client_key;
+	conn_opts->ssl->trustStore = conf->ca_file;
+	conn_opts->ssl->keyStore = conf->client_cert_file;
+	conn_opts->ssl->privateKey = conf->client_key_file;
+	conn_opts->ssl->verify = 1;
 }
 
 void mqtt_reconnect(MQTTClient *client, MQTTClient_connectOptions *conn_opts) {

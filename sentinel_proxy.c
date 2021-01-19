@@ -140,31 +140,36 @@ void handle_message(MQTTClient client, zmsg_t *msg, char *topic_buf,
 }
 
 static void append_topic(char **topic, size_t *topic_size, const char *text) {
-	unsigned len = strlen(text);
-	if (*topic_size < len + 1){
-		fprintf(stderr, "failed to create message topic");
-		exit(EXIT_FAILURE);
-	}
+	size_t len = strlen(text);
+	CHECK_ERR_FATAL(*topic_size < len + 1, "failed to append to mqtt topic\n");
 	strncpy(*topic, text, *topic_size);
 	*topic += len;
 	*topic_size -= len;
 }
 
-void prepare_topic(char *topic, size_t topic_size,
-				   const char *cert_name, const char *device_token){
-	// topic to send is topic_prefix+cert_name+'/'+device_token+'/'+msg_topic
-	// e.g., if topic_prefix is "sentinel/collect/", cert_name is "user",
+// It allocates memory starting at *topic. Caller is responsible for its
+// proper free.
+static void prepare_mqtt_topic(char **topic, size_t *topic_prefix_len,
+	const char *client_id, const char *device_token){
+	// MQTT topic is topic_prefix + client_id + '/' + device_token + '/'
+	// + zmq_topic_suffix
+	// e.g., if topic_prefix is "sentinel/collect/", client_id is "user",
 	// device_token is:
 	// "ad38f637a0ea50b7ee49dd704fa4aad894f2dccadc15b37cbb16db0c362d73a9and"
-	// and msg_topic is "flow", topic should be:
+	// and zmq_topic_suffix is "flow", mqtt topic should be:
 	// "sentinel/collect/user/ad38f ... 2d73a9/flow".
-	// We prepare the fixed part (topic_prefix+cert_name+'/'+device_token+'/')
-	// here, just the msg_topic is copied in handle_message.
-	append_topic(&topic, &topic_size, TOPIC_PREFIX);
-	append_topic(&topic, &topic_size, cert_name);
-	append_topic(&topic, &topic_size, "/");
-	append_topic(&topic, &topic_size, device_token);
-	append_topic(&topic, &topic_size, "/");
+	// We prepare the fixed part (topic_prefix + client_id + '/' + device_token
+	// + '/') here, just the zmq_topic_suffix is copied in zmq_reader_handler().
+	*topic_prefix_len = strlen(TOPIC_PREFIX) + strlen(client_id) + 1
+		+ DEVICE_TOKEN_LEN + 1;
+	size_t topic_len = *topic_prefix_len + ZMQ_MAX_TOPIC_LEN + 1;
+	*topic = malloc(topic_len);
+	char *ptr = *topic;
+	append_topic(&ptr, &topic_len, TOPIC_PREFIX);
+	append_topic(&ptr, &topic_len, client_id);
+	append_topic(&ptr, &topic_len, "/");
+	append_topic(&ptr, &topic_len, device_token);
+	append_topic(&ptr, &topic_len, "/");
 }
 
 void run_proxy(const struct proxy_conf *conf) {

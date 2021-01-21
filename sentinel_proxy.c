@@ -16,33 +16,31 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <czmq.h>
-#include <getopt.h>
+#include <stdio.h>
 #include <openssl/ssl.h>
 #include <openssl/x509v3.h>
-#include <stdio.h>
 #include <zlib.h>
-#include "MQTTClient.h"
+#include <czmq.h>
+#include <MQTTClient.h>
 
 #include "config.h"
 #include "proxy_conf.h"
 
-#define MAX_TOPIC_LEN 256
-#define MAX_MSG_SIZE (1024 * 1024 * 2)
-#define MAX_WAITING_MESSAGES 50
-// mandatory prefix for ZMQ topic (is discarded elsewhere)
+#define CERT_NAME_MAX_LEN 64
 #define TOPIC_PREFIX "sentinel/collect/"
-#define TOPIC_PREFIX_LEN strlen(TOPIC_PREFIX)
-// zlib compression levels: 1 is lowest (fastest), 9 is biggest (slowest)
-#define COMPRESS_LEVEL 9
+#define ZMQ_MAX_TOPIC_LEN 256
+#define ZMQ_MAX_MSG_SIZE (1024 * 1024 * 2)
+#define ZMQ_MAX_WAITING_MESSAGES 50
 // QoS levels - see here:
 // https://www.hivemq.com/blog/mqtt-essentials-part-6-mqtt-quality-of-service-levels
 #define MQTT_QOS 0
 #define MQTT_KEEPALIVE_INTERVAL 60  // seconds
+// zlib compression levels: 1 is lowest (fastest), 9 is biggest (slowest)
+#define COMPRESS_LEVEL 9
 // buffer for compressed data
 // zlib doc: "Upon entry, destLen is the total size of the destination
 // buffer, which must be at least 0.1% larger than sourceLen plus 12 bytes."
-#define COMPRESS_BUF_SIZE ((MAX_MSG_SIZE * 1001) / 1000 + 12 + 1)
+#define COMPRESS_BUF_SIZE ((ZMQ_MAX_MSG_SIZE * 1001) / 1000 + 12 + 1)
 
 #define CHECK_ERR_FATAL(CMD, ...)         \
 	do {                                  \
@@ -52,16 +50,71 @@
 		}                                 \
 	} while (0)
 
-#define CHECK_ERR(CMD, ...)               \
+// WARNING: be aware of goto !!
+#define CHECK_ERR(CMD, LABEL, ...)        \
 	do {                                  \
 		if (CMD) {                        \
 			fprintf(stderr, __VA_ARGS__); \
-			return;                       \
+			goto LABEL;                   \
 		}                                 \
 	} while (0)
 
-#define MAX_NAME_LEN 64
+struct reader_arg {
+	MQTTClient *mqtt_client;
+	MQTTClient_connectOptions *mqtt_conn_opts;
+	char *mqtt_topic_buff;
+	char *mqtt_topic_prefix_end;
+};
 
+static int mqtt_keep_alive_timer_handler(zloop_t *loop, int timer_id, void *arg) {
+	// It must return 0. If -1 is returned event loop is terminated.
+	struct reader_arg *read_arg = (struct reader_arg *)arg;
+	if (MQTTClient_isConnected(*read_arg->mqtt_client))
+		MQTTClient_yield();
+	else
+		MQTTClient_connect(*read_arg->mqtt_client, read_arg->mqtt_conn_opts);
+	return 0;
+}
+
+static int zmq_reader_handler(zloop_t *loop, zsock_t *reader, void *arg) {
+	// It must return 0. If -1 is returned event loop is terminated.
+	struct reader_arg *read_arg = (struct reader_arg *)arg;
+	zmsg_t *msg = zmsg_recv(reader);
+	CHECK_ERR(!msg, err, "receiving ZMQ message was interrupted\n");
+	CHECK_ERR(zmsg_size(msg) != 2, err ,
+		"ignoring mallformed message (%ld parts)\n", zmsg_size(msg));
+	// extract zmq topic
+	zframe_t *topic_frame = zmsg_first(msg);
+	size_t msg_topic_len = zframe_size(topic_frame);
+	unsigned char *msg_topic = zframe_data(topic_frame);
+	// check zmq topic
+	CHECK_ERR(msg_topic_len < strlen(TOPIC_PREFIX)
+		|| msg_topic_len > ZMQ_MAX_TOPIC_LEN
+		|| strncmp(TOPIC_PREFIX, msg_topic, strlen(TOPIC_PREFIX)), err,
+		"wrong zmq message topic\n");
+	// compose mqtt topic
+	strncpy(read_arg->mqtt_topic_prefix_end, msg_topic + strlen(TOPIC_PREFIX),
+		msg_topic_len - strlen(TOPIC_PREFIX));
+	read_arg->mqtt_topic_prefix_end[msg_topic_len - strlen(TOPIC_PREFIX)] = 0;
+	// compress data
+	zframe_t *payload_frame = zmsg_last(msg);
+	static unsigned char compress_buf[COMPRESS_BUF_SIZE];
+	unsigned long compress_len = COMPRESS_BUF_SIZE;
+	int ret = compress2(compress_buf, &compress_len, zframe_data(payload_frame),
+		zframe_size(payload_frame), COMPRESS_LEVEL);
+	CHECK_ERR(ret != Z_OK, err, "compress2 error - result: %d\n", ret);
+	// send
+	ret = MQTTClient_publish(*read_arg->mqtt_client, read_arg->mqtt_topic_buff,
+		(int)compress_len, compress_buf, MQTT_QOS, 0, NULL);
+	if (ret != MQTTCLIENT_SUCCESS) {
+		fprintf(stderr, "message was not published, err code:%d\n", ret);
+		// TODO buffer message
+		// try to send again later
+	}
+err:
+	zmsg_destroy(&msg);
+	return 0;
+}
 
 // It alocates memory and returns pointer to it.
 // Caller is responsible for its freeing.
@@ -97,48 +150,6 @@ static void mqtt_setup(MQTTClient_connectOptions *conn_opts,
 	conn_opts->ssl->verify = 1;
 }
 
-void mqtt_reconnect(MQTTClient *client, MQTTClient_connectOptions *conn_opts) {
-	fprintf(stderr, "not connected to server, reconnecting...\n");
-	int ret = MQTTClient_connect(*client, conn_opts);
-	printf("mqtt reconnect - connect ret: %d\n", ret);
-
-	int wait_time = 1;
-	while (!MQTTClient_isConnected(client)) {
-		fprintf(stderr, "...next try in %d seconds...\n", wait_time);
-		sleep(wait_time);
-		MQTTClient_connect(client, conn_opts);
-		if (wait_time <= 1024)
-			wait_time *= 2;
-	}
-	fprintf(stderr, "reconnected\n");
-}
-
-void handle_message(MQTTClient client, zmsg_t *msg, char *topic_buf,
-					unsigned topic_prefix_len) {
-	static unsigned char compress_buf[COMPRESS_BUF_SIZE];
-	CHECK_ERR(zmsg_size(msg) != 2, "ignoring mallformed message (%ld parts)\n",
-			  zmsg_size(msg));
-	zframe_t *topic = zmsg_first(msg);
-	unsigned topic_len = zframe_size(topic);
-	char *topic_data = (char *)zframe_data(topic);
-	zframe_t *payload = zmsg_last(msg);
-	CHECK_ERR(topic_len < strlen(TOPIC_PREFIX) ||
-				  strncmp(TOPIC_PREFIX, topic_data, TOPIC_PREFIX_LEN) != 0,
-			  "ignoring invalid topic %.*s\n", topic_len, topic_data);
-	CHECK_ERR(topic_len >= MAX_TOPIC_LEN, "ignoring too long topic %.*s\n",
-			  topic_len, topic_data);
-	char *topic_buf_pos = topic_buf + topic_prefix_len;
-	strncpy(topic_buf_pos, topic_data + TOPIC_PREFIX_LEN,
-				  topic_len - TOPIC_PREFIX_LEN);
-	topic_buf_pos[topic_len - TOPIC_PREFIX_LEN] = 0;
-	unsigned long compress_len = COMPRESS_BUF_SIZE;
-	int rc = compress2(compress_buf, &compress_len, zframe_data(payload),
-					   zframe_size(payload), COMPRESS_LEVEL);
-	CHECK_ERR(rc != Z_OK, "compress2 error - result: %d\n", rc);
-	MQTTClient_publish(client, topic_buf, compress_len, (char *)compress_buf,
-					   MQTT_QOS, 0, NULL);
-}
-
 static void append_topic(char **topic, size_t *topic_size, const char *text) {
 	size_t len = strlen(text);
 	CHECK_ERR_FATAL(*topic_size < len + 1, "failed to append to mqtt topic\n");
@@ -172,78 +183,60 @@ static void prepare_mqtt_topic(char **topic, size_t *topic_prefix_len,
 	append_topic(&ptr, &topic_len, "/");
 }
 
-void run_proxy(const struct proxy_conf *conf) {
-	// get name from certificate
-	char *cert_name = get_name_from_cert(conf->client_cert_file);
-	assert(cert_name);
-	// TODO: cert_name length should be checked (once its format is fixed)
-	fprintf(stderr, "got name from certificate: %s\n", cert_name);
-
-	unsigned topic_prefix_len = TOPIC_PREFIX_LEN + strlen(cert_name) + 1
-								+ DEVICE_TOKEN_LEN + 1;
-	char *topic_to_send = malloc(topic_prefix_len + MAX_TOPIC_LEN);
-	prepare_topic(topic_to_send, topic_prefix_len + MAX_TOPIC_LEN,
-				  cert_name, conf->device_token);
-
-	// MQTT initialization
-	fprintf(stderr, "connecting to %s, listening on %s\n", conf->upstream_srv,
-			conf->local_socket);
-
-
+static void run_proxy(const struct proxy_conf *conf) {
+	char *client_id = get_name_from_cert(conf->client_cert_file);
+	// TODO: client_id length should be checked (once its format is fixed)
+	fprintf(stderr, "got name from certificate: %s\n", client_id);
+	
+	// mqtt setup
+	char *mqtt_topic = NULL;
+	size_t mqtt_topic_prefix_len = 0;
+	prepare_mqtt_topic(&mqtt_topic, &mqtt_topic_prefix_len, client_id,
+		conf->device_token);
 	MQTTClient client;
-	int ret = MQTTClient_create(&client, conf->upstream_srv, cert_name,
-					  MQTTCLIENT_PERSISTENCE_NONE, NULL);
-	printf("create ret: %d\n", ret);
-
+	int ret = MQTTClient_create(&client, conf->upstream_srv, client_id,
+		MQTTCLIENT_PERSISTENCE_NONE, NULL);
+	CHECK_ERR_FATAL(ret != MQTTCLIENT_SUCCESS, "Couldn't create mqtt client\n");
 	MQTTClient_connectOptions conn_opts = MQTTClient_connectOptions_initializer;
 	MQTTClient_SSLOptions ssl_opts = MQTTClient_SSLOptions_initializer;
 	conn_opts.ssl = &ssl_opts;
-	mqtt_setup(&conn_opts, conf->ca_file, conf->client_cert_file,
-			   conf->client_key_file);
-	ret = MQTTClient_connect(client, &conn_opts);
-	printf("connect ret: %d\n", ret);
-
-	// ZMQ initialization
+	mqtt_setup(&conn_opts, conf);
+	
+	// zmq setup
 	zsock_t *receiver = zsock_new(ZMQ_PULL);
-	assert(receiver);
-	zsock_set_maxmsgsize(receiver, MAX_MSG_SIZE);
-	zsock_set_rcvhwm(receiver, MAX_WAITING_MESSAGES);
-	zsock_bind(receiver, "%s", conf->local_socket);
-	zpoller_t *poller = zpoller_new(receiver, NULL);
-	assert(poller);
-
-
-	while (true) {
-		zpoller_wait(poller, (MQTT_KEEPALIVE_INTERVAL + 1) * 1000);
-		if (zpoller_terminated(poller))
-			// wait was interrupted
-			break;
-		MQTTClient_yield();
-		if (zpoller_expired(poller))
-			// wait timeout expired
-			continue;
-		// TODO change to nonblocking recv
-		zmsg_t *msg = zmsg_recv(receiver);
-		if (!msg)
-			continue;
-		if (!MQTTClient_isConnected(client)){
-
-			printf("not connected\n");
-			// MQTTClient_destroy(&client);
-			// MQTTClient_create(&client, conf->upstream_srv, cert_name,
-			//                   MQTTCLIENT_PERSISTENCE_NONE, NULL);
-			mqtt_reconnect(&client, &conn_opts);
-		}
-		handle_message(client, msg, topic_to_send, topic_prefix_len);
-		zmsg_destroy(&msg);
-	}
-
-	MQTTClient_disconnect(client, 0);
-	MQTTClient_destroy(&client);
+	CHECK_ERR_FATAL(!receiver, "Couldn't create zmq socket\n");
+	zsock_set_maxmsgsize(receiver, ZMQ_MAX_MSG_SIZE);
+	zsock_set_rcvhwm(receiver, ZMQ_MAX_WAITING_MESSAGES);
+	ret = zsock_bind(receiver, "%s", conf->local_socket);
+	CHECK_ERR_FATAL(ret == -1, "Couldn't bind to local ZMQ socket\n");
+	
+	zloop_t *loop = zloop_new();
+	CHECK_ERR_FATAL(!loop, "couldn't create zloop\n");
+	struct reader_arg read_arg = {
+		.mqtt_client = &client,
+		.mqtt_conn_opts = &conn_opts,
+		.mqtt_topic_buff = mqtt_topic,
+		.mqtt_topic_prefix_end = mqtt_topic + mqtt_topic_prefix_len
+	};
+	ret = zloop_reader(loop, receiver, zmq_reader_handler, &read_arg);
+	CHECK_ERR_FATAL(ret == -1, "couldn't register zloop reader\n");
+	ret = zloop_timer(loop, MQTT_KEEPALIVE_INTERVAL/2 * 1000, 0,
+		mqtt_keep_alive_timer_handler, &read_arg);
+	CHECK_ERR_FATAL(ret == -1, "couldn't register zloop keep alive handler\n");
+	
+	// start
+	fprintf(stderr, "connecting to %s, listening on %s\n", conf->upstream_srv,
+		conf->local_socket);
+	MQTTClient_connect(client, &conn_opts);
+	zloop_start(loop);
+	// teardown
+	zloop_destroy(&loop);
 	zsock_destroy(&receiver);
-	zpoller_destroy(&poller);
-	free(topic_to_send);
-	free(cert_name);
+	// leave some time to deliver in-flight messages
+	MQTTClient_disconnect(client, 5000); // 5s
+	MQTTClient_destroy(&client);
+	free(mqtt_topic);
+	free(client_id);
 }
 
 int main(int argc, char *argv[]) {

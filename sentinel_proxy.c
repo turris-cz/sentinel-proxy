@@ -35,12 +35,20 @@
 // https://www.hivemq.com/blog/mqtt-essentials-part-6-mqtt-quality-of-service-levels
 #define MQTT_QOS 0
 #define MQTT_KEEPALIVE_INTERVAL 60  // seconds
+#define MQTT_KEEPALIVE_TIMEOUT (MQTT_KEEPALIVE_INTERVAL / 2) //seconds
 // zlib compression levels: 1 is lowest (fastest), 9 is biggest (slowest)
 #define COMPRESS_LEVEL 9
 // buffer for compressed data
 // zlib doc: "Upon entry, destLen is the total size of the destination
 // buffer, which must be at least 0.1% larger than sourceLen plus 12 bytes."
 #define COMPRESS_BUF_SIZE ((ZMQ_MAX_MSG_SIZE * 1001) / 1000 + 12 + 1)
+
+#define CHECK_ERR(CMD, ...)               \
+	do {                                  \
+		if (CMD) {                        \
+			fprintf(stderr, __VA_ARGS__); \
+		}                                 \
+	} while (0)
 
 #define CHECK_ERR_FATAL(CMD, ...)         \
 	do {                                  \
@@ -51,7 +59,7 @@
 	} while (0)
 
 // WARNING: be aware of goto !!
-#define CHECK_ERR(CMD, LABEL, ...)        \
+#define CHECK_ERR_GT(CMD, LABEL, ...)        \
 	do {                                  \
 		if (CMD) {                        \
 			fprintf(stderr, __VA_ARGS__); \
@@ -69,10 +77,15 @@ struct reader_arg {
 static int mqtt_keep_alive_timer_handler(zloop_t *loop, int timer_id, void *arg) {
 	// It must return 0. If -1 is returned event loop is terminated.
 	struct reader_arg *read_arg = (struct reader_arg *)arg;
-	if (MQTTClient_isConnected(*read_arg->mqtt_client))
+	if (MQTTClient_isConnected(*read_arg->mqtt_client)) {
 		MQTTClient_yield();
-	else
-		MQTTClient_connect(*read_arg->mqtt_client, read_arg->mqtt_conn_opts);
+	} else {
+		int ret = MQTTClient_connect(*read_arg->mqtt_client,
+			read_arg->mqtt_conn_opts);
+		CHECK_ERR(ret != MQTTCLIENT_SUCCESS,
+			"Connection to server failed\nReconnect in %d s\n",
+			MQTT_KEEPALIVE_TIMEOUT);
+	}
 	return 0;
 }
 
@@ -80,15 +93,15 @@ static int zmq_reader_handler(zloop_t *loop, zsock_t *reader, void *arg) {
 	// It must return 0. If -1 is returned event loop is terminated.
 	struct reader_arg *read_arg = (struct reader_arg *)arg;
 	zmsg_t *msg = zmsg_recv(reader);
-	CHECK_ERR(!msg, err, "receiving ZMQ message was interrupted\n");
-	CHECK_ERR(zmsg_size(msg) != 2, err ,
+	CHECK_ERR_GT(!msg, err, "receiving ZMQ message was interrupted\n");
+	CHECK_ERR_GT(zmsg_size(msg) != 2, err ,
 		"ignoring mallformed message (%ld parts)\n", zmsg_size(msg));
 	// extract zmq topic
 	zframe_t *topic_frame = zmsg_first(msg);
 	size_t msg_topic_len = zframe_size(topic_frame);
 	unsigned char *msg_topic = zframe_data(topic_frame);
 	// check zmq topic
-	CHECK_ERR(msg_topic_len < strlen(TOPIC_PREFIX)
+	CHECK_ERR_GT(msg_topic_len < strlen(TOPIC_PREFIX)
 		|| msg_topic_len > ZMQ_MAX_TOPIC_LEN
 		|| strncmp(TOPIC_PREFIX, msg_topic, strlen(TOPIC_PREFIX)), err,
 		"wrong zmq message topic\n");
@@ -102,7 +115,7 @@ static int zmq_reader_handler(zloop_t *loop, zsock_t *reader, void *arg) {
 	unsigned long compress_len = COMPRESS_BUF_SIZE;
 	int ret = compress2(compress_buf, &compress_len, zframe_data(payload_frame),
 		zframe_size(payload_frame), COMPRESS_LEVEL);
-	CHECK_ERR(ret != Z_OK, err, "compress2 error - result: %d\n", ret);
+	CHECK_ERR_GT(ret != Z_OK, err, "compress2 error - result: %d\n", ret);
 	// send
 	ret = MQTTClient_publish(*read_arg->mqtt_client, read_arg->mqtt_topic_buff,
 		(int)compress_len, compress_buf, MQTT_QOS, 0, NULL);
@@ -220,14 +233,16 @@ static void run_proxy(const struct proxy_conf *conf) {
 	};
 	ret = zloop_reader(loop, receiver, zmq_reader_handler, &read_arg);
 	CHECK_ERR_FATAL(ret == -1, "couldn't register zloop reader\n");
-	ret = zloop_timer(loop, MQTT_KEEPALIVE_INTERVAL/2 * 1000, 0,
+	ret = zloop_timer(loop, MQTT_KEEPALIVE_TIMEOUT * 1000, 0,
 		mqtt_keep_alive_timer_handler, &read_arg);
 	CHECK_ERR_FATAL(ret == -1, "couldn't register zloop keep alive handler\n");
 	
 	// start
 	fprintf(stderr, "connecting to %s, listening on %s\n", conf->upstream_srv,
 		conf->local_socket);
-	MQTTClient_connect(client, &conn_opts);
+	ret = MQTTClient_connect(client, &conn_opts);
+	CHECK_ERR(ret != MQTTCLIENT_SUCCESS,
+		"Could't connect to server\nReconnect in %d s\n", MQTT_KEEPALIVE_TIMEOUT);
 	zloop_start(loop);
 	// teardown
 	zloop_destroy(&loop);

@@ -202,39 +202,6 @@ static void mqtt_setup(MQTTClient_connectOptions *conn_opts,
 	conn_opts->will->message = DISCONN_PAYLOAD;
 }
 
-static void append_topic(char **topic, size_t *topic_size, const char *text) {
-	size_t len = strlen(text);
-	CHECK_ERR_FATAL(*topic_size < len + 1, "failed to append to mqtt topic\n");
-	strncpy(*topic, text, *topic_size);
-	*topic += len;
-	*topic_size -= len;
-}
-
-// It allocates memory starting at *topic. Caller is responsible for its
-// proper free.
-static void prepare_data_topic(char **topic, size_t *topic_prefix_len,
-	const char *client_id, const char *device_token){
-	// MQTT topic is DATA_TOPIC_PREFIX + client_id + '/' + device_token + '/'
-	// + zmq_topic_suffix
-	// e.g., if DATA_TOPIC_PREFIX is "sentinel/collect/", client_id is "user",
-	// device_token is:
-	// "ad38f637a0ea50b7ee49dd704fa4aad894f2dccadc15b37cbb16db0c362d73a9and"
-	// and zmq_topic_suffix is "flow", mqtt topic should be:
-	// "sentinel/collect/user/ad38f ... 2d73a9/flow".
-	// We prepare the fixed part (DATA_TOPIC_PREFIX + client_id + '/' + device_token
-	// + '/') here, just the zmq_topic_suffix is copied in zmq_reader_handler().
-	*topic_prefix_len = strlen(DATA_TOPIC_PREFIX) + strlen(client_id) + 1
-		+ DEVICE_TOKEN_LEN + 1;
-	size_t topic_len = *topic_prefix_len + ZMQ_MAX_TOPIC_LEN + 1;
-	*topic = malloc(topic_len);
-	char *ptr = *topic;
-	append_topic(&ptr, &topic_len, DATA_TOPIC_PREFIX);
-	append_topic(&ptr, &topic_len, client_id);
-	append_topic(&ptr, &topic_len, "/");
-	append_topic(&ptr, &topic_len, device_token);
-	append_topic(&ptr, &topic_len, "/");
-}
-
 static void run_proxy(const struct proxy_conf *conf) {
 	char *client_id = get_name_from_cert(conf->client_cert_file);
 	// TODO: client_id length should be checked (once its format is fixed)
@@ -243,12 +210,15 @@ static void run_proxy(const struct proxy_conf *conf) {
 	// mqtt setup
 	char *data_topic = NULL;
 	size_t data_topic_prefix_len = 0;
-	prepare_data_topic(&data_topic, &data_topic_prefix_len, client_id,
-		conf->device_token);
+	FILE *tmp = open_memstream(&data_topic, &data_topic_prefix_len);
+	fprintf(tmp, "%s%s/%s/", DATA_TOPIC_PREFIX, client_id, conf->device_token);
+	fclose(tmp);
+	// we need more space for topic suffix from received ZMQ message
+	data_topic = realloc(data_topic, data_topic_prefix_len + ZMQ_MAX_TOPIC_LEN);
 
 	char *status_topic = NULL;
 	size_t status_topic_len = 0;
-	FILE *tmp = open_memstream(&status_topic, &status_topic_len);
+	tmp = open_memstream(&status_topic, &status_topic_len);
 	fprintf(tmp, "%s%s/%s", STATUS_TOPIC_PREFIX, client_id, conf->device_token);
 	fclose(tmp);
 

@@ -9,6 +9,7 @@ PKG_CHECK_MODULES([LIBCRYPTO], [libcrypto])
 PKG_CHECK_MODULES([ZLIB], [zlib])
 PKG_CHECK_MODULES([LIBCZMQ], [libczmq])
 PKG_CHECK_MODULES([LIBCONFIG], [libconfig])
+PKG_CHECK_MODULES([msgpack], [msgpack])
 AC_CHECK_LIB(paho-mqtt3cs, MQTTClient_create, , AC_MSG_ERROR([Cannot find libpaho-mqtt]))
 
 dnl Check if we have argp available from our libc otherwise check for standalone version

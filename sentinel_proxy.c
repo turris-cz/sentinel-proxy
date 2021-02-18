@@ -22,15 +22,13 @@
 #include <zlib.h>
 #include <czmq.h>
 #include <MQTTClient.h>
+#include <msgpack.h>
 
 #include "config.h"
 #include "proxy_conf.h"
 
 #define CERT_NAME_MAX_LEN 64
-#define DATA_TOPIC_PREFIX "sentinel/collect/"
-#define STATUS_TOPIC_PREFIX "sentinel/status/"
-#define HEARTBEAT_PAYLOAD "heartbeat"
-#define DISCONN_PAYLOAD "disconnect"
+#define TOPIC_PREFIX "sentinel/collect/"
 #define HEARTBEAT_TIMEOUT (60 * 5) // seconds
 #define ZMQ_MAX_TOPIC_LEN 256
 #define ZMQ_MAX_MSG_SIZE (1024 * 1024 * 2)
@@ -71,6 +69,11 @@
 		}                                 \
 	} while (0)
 
+#define PACK_STR(packer, str) do { \
+	msgpack_pack_str(packer, strlen(str)); \
+	msgpack_pack_str_body(packer, str, strlen(str)); \
+	} while(0);
+
 struct reader_arg {
 	MQTTClient *mqtt_client;
 	char *mqtt_topic_buff;
@@ -83,35 +86,52 @@ struct keep_alive_arg {
 	char *status_topic;
 };
 
-struct heartbeat_arg {
-	MQTTClient *client;
-	char *topic_buff;
+struct status_mesg {
+	char *action;
+	long long int ts;
 };
 
-static inline void send_heartbeat(MQTTClient *client, const char *topic) {
-	MQTTClient_publish(*client, topic, strlen(HEARTBEAT_PAYLOAD),
-	HEARTBEAT_PAYLOAD, MQTT_QOS, 0, NULL);
+static inline void compose_status_mesg(msgpack_sbuffer *sbuff, struct status_mesg *mesg) {
+	msgpack_sbuffer_init(sbuff);
+	msgpack_packer pk;
+	msgpack_packer_init(&pk, sbuff, msgpack_sbuffer_write);
+	msgpack_pack_map(&pk, 2);
+	PACK_STR(&pk, "action");
+	PACK_STR(&pk, mesg->action);
+	PACK_STR(&pk, "ts");
+	msgpack_pack_long_long(&pk, mesg->ts);
 }
 
-static void mqtt_connect(MQTTClient *client, MQTTClient_connectOptions *conn_opts,
-	const char *status_topic) {
-	int ret = MQTTClient_connect(*client, conn_opts);
-	CHECK_ERR(ret != MQTTCLIENT_SUCCESS,
-		"Could't connect to server\nReconnect in %d s\n", MQTT_KEEPALIVE_TIMEOUT);
-	send_heartbeat(client, status_topic);
-};
-
-static void mqtt_disconnect(MQTTClient *client, const char *status_topic) {
-	MQTTClient_publish(*client, status_topic, strlen(DISCONN_PAYLOAD),
-		DISCONN_PAYLOAD, MQTT_QOS, 0, NULL);
+static inline void mqtt_disconnect(MQTTClient *client, const char *status_topic) {
+	msgpack_sbuffer buff;
+	struct status_mesg mesg = { .action = "disconnect", .ts = time(NULL) };
+	compose_status_mesg(&buff, &mesg);
+	MQTTClient_publish(*client, status_topic, buff.size, buff.data, MQTT_QOS, 0,
+		NULL);
+	msgpack_sbuffer_destroy(&buff);
 	// leave some time to deliver in-flight messages
 	MQTTClient_disconnect(*client, 5000); // 5s
 }
 
+static inline void send_heartbeat(struct keep_alive_arg *arg) {
+	msgpack_sbuffer buff;
+	struct status_mesg mesg = { .action = "heartbeat", .ts = time(NULL) };
+	compose_status_mesg(&buff, &mesg);
+	MQTTClient_publish(*arg->client, arg->status_topic, buff.size, buff.data,
+		MQTT_QOS, 0, NULL);
+	msgpack_sbuffer_destroy(&buff);
+}
+
+static void mqtt_connect(struct keep_alive_arg *arg) {
+	int ret = MQTTClient_connect(*arg->client, arg->conn_opts);
+	CHECK_ERR(ret != MQTTCLIENT_SUCCESS,
+		"Could't connect to server\nReconnect in %d s\n", MQTT_KEEPALIVE_TIMEOUT);
+	send_heartbeat(arg);
+};
+
 static int heartbeat_handler(zloop_t *loop, int timer_id, void *arg) {
 	// It must return 0. If -1 is returned event loop is terminated.
-	struct heartbeat_arg *heart_arg = (struct heartbeat_arg *)arg;
-	send_heartbeat(heart_arg->client, heart_arg->topic_buff);
+	send_heartbeat((struct keep_alive_arg *) arg);
 	return 0;
 };
 
@@ -121,8 +141,7 @@ static int mqtt_keep_alive_timer_handler(zloop_t *loop, int timer_id, void *arg)
 	if (MQTTClient_isConnected(*keep_al_arg->client))
 		MQTTClient_yield();
 	else
-		mqtt_connect(keep_al_arg->client, keep_al_arg->conn_opts,
-			keep_al_arg->status_topic);
+		mqtt_connect(keep_al_arg);
 	return 0;
 }
 
@@ -138,14 +157,14 @@ static int zmq_reader_handler(zloop_t *loop, zsock_t *reader, void *arg) {
 	size_t msg_topic_len = zframe_size(topic_frame);
 	unsigned char *msg_topic = zframe_data(topic_frame);
 	// check zmq topic
-	CHECK_ERR_GT(msg_topic_len < strlen(DATA_TOPIC_PREFIX)
+	CHECK_ERR_GT(msg_topic_len < strlen(TOPIC_PREFIX)
 		|| msg_topic_len > ZMQ_MAX_TOPIC_LEN
-		|| strncmp(DATA_TOPIC_PREFIX, msg_topic, strlen(DATA_TOPIC_PREFIX)), err,
+		|| strncmp(TOPIC_PREFIX, msg_topic, strlen(TOPIC_PREFIX)), err,
 		"wrong zmq message topic\n");
 	// compose mqtt topic
-	strncpy(read_arg->mqtt_topic_prefix_end, msg_topic + strlen(DATA_TOPIC_PREFIX),
-		msg_topic_len - strlen(DATA_TOPIC_PREFIX));
-	read_arg->mqtt_topic_prefix_end[msg_topic_len - strlen(DATA_TOPIC_PREFIX)] = 0;
+	strncpy(read_arg->mqtt_topic_prefix_end, msg_topic + strlen(TOPIC_PREFIX),
+		msg_topic_len - strlen(TOPIC_PREFIX));
+	read_arg->mqtt_topic_prefix_end[msg_topic_len - strlen(TOPIC_PREFIX)] = 0;
 	// compress data
 	zframe_t *payload_frame = zmsg_last(msg);
 	static unsigned char compress_buf[COMPRESS_BUF_SIZE];
@@ -187,8 +206,20 @@ static char *get_name_from_cert(const char *filename) {
 	return ret;
 }
 
-static void mqtt_setup(MQTTClient_connectOptions *conn_opts,
-	const struct proxy_conf *conf, const char *status_topic) {
+static inline void prep_last_will(msgpack_sbuffer *payload) {
+	msgpack_sbuffer_init(payload);
+	msgpack_packer pk;
+	msgpack_packer_init(&pk, payload, msgpack_sbuffer_write);
+	msgpack_pack_map(&pk, 1);
+	PACK_STR(&pk, "action");
+	PACK_STR(&pk, "last_will_disconnect");
+	// No time stamp here
+	// This message is sent by MQTT broker
+}
+
+static inline void mqtt_setup(MQTTClient_connectOptions *conn_opts,
+		const struct proxy_conf *conf, const char *status_topic,
+		msgpack_sbuffer *lwt_payload) {
 	conn_opts->retryInterval = 5;
 	conn_opts->keepAliveInterval = MQTT_KEEPALIVE_INTERVAL;
 	conn_opts->reliable = 0;
@@ -199,7 +230,10 @@ static void mqtt_setup(MQTTClient_connectOptions *conn_opts,
 	conn_opts->ssl->privateKey = conf->client_key_file;
 	conn_opts->ssl->verify = 1;
 	conn_opts->will->topicName = status_topic;
-	conn_opts->will->message = DISCONN_PAYLOAD;
+	conn_opts->will->message = NULL; // must be NULL to allow binary payload
+	prep_last_will(lwt_payload);
+	conn_opts->will->payload.len = lwt_payload->size;
+	conn_opts->will->payload.data = lwt_payload->data;
 }
 
 static void run_proxy(const struct proxy_conf *conf) {
@@ -211,7 +245,7 @@ static void run_proxy(const struct proxy_conf *conf) {
 	char *data_topic = NULL;
 	size_t data_topic_prefix_len = 0;
 	FILE *tmp = open_memstream(&data_topic, &data_topic_prefix_len);
-	fprintf(tmp, "%s%s/%s/", DATA_TOPIC_PREFIX, client_id, conf->device_token);
+	fprintf(tmp, "%s%s/%s/", TOPIC_PREFIX, client_id, conf->device_token);
 	fclose(tmp);
 	// we need more space for topic suffix from received ZMQ message
 	data_topic = realloc(data_topic, data_topic_prefix_len + ZMQ_MAX_TOPIC_LEN);
@@ -219,7 +253,7 @@ static void run_proxy(const struct proxy_conf *conf) {
 	char *status_topic = NULL;
 	size_t status_topic_len = 0;
 	tmp = open_memstream(&status_topic, &status_topic_len);
-	fprintf(tmp, "%s%s/%s", STATUS_TOPIC_PREFIX, client_id, conf->device_token);
+	fprintf(tmp, "%s%s/%s/status", TOPIC_PREFIX, client_id, conf->device_token);
 	fclose(tmp);
 
 	MQTTClient client;
@@ -231,7 +265,8 @@ static void run_proxy(const struct proxy_conf *conf) {
 	MQTTClient_willOptions lw_opts = MQTTClient_willOptions_initializer;
 	conn_opts.ssl = &ssl_opts;
 	conn_opts.will = &lw_opts;
-	mqtt_setup(&conn_opts, conf, status_topic);
+	msgpack_sbuffer last_will_payload;
+	mqtt_setup(&conn_opts, conf, status_topic, &last_will_payload);
 
 	// zmq setup
 	zsock_t *receiver = zsock_new(ZMQ_PULL);
@@ -260,18 +295,14 @@ static void run_proxy(const struct proxy_conf *conf) {
 		mqtt_keep_alive_timer_handler, &keep_al_arg);
 	CHECK_ERR_FATAL(ret == -1, "couldn't register zloop keep alive handler\n");
 
-	struct heartbeat_arg heart_arg = {
-		.client = &client,
-		.topic_buff = status_topic
-	};
 	ret = zloop_timer(loop, HEARTBEAT_TIMEOUT * 1000, 0, heartbeat_handler,
-		&heart_arg);
+		&keep_al_arg);
 	CHECK_ERR_FATAL(ret == -1, "couldn't register zloop heartbeat handler\n");
 
 	// start
 	fprintf(stderr, "connecting to %s, listening on %s\n", conf->upstream_srv,
 		conf->local_socket);
-	mqtt_connect(&client, &conn_opts, status_topic);
+	mqtt_connect(&keep_al_arg);
 	zloop_start(loop);
 	// teardown
 	zloop_destroy(&loop);
@@ -281,6 +312,7 @@ static void run_proxy(const struct proxy_conf *conf) {
 	free(data_topic);
 	free(status_topic);
 	free(client_id);
+	msgpack_sbuffer_destroy(&last_will_payload);
 }
 
 int main(int argc, char *argv[]) {

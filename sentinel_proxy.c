@@ -19,7 +19,6 @@
 #include <stdio.h>
 #include <openssl/ssl.h>
 #include <openssl/x509v3.h>
-#include <zlib.h>
 #include <czmq.h>
 #include <MQTTClient.h>
 #include <msgpack.h>
@@ -38,12 +37,6 @@
 #define MQTT_QOS 0
 #define MQTT_KEEPALIVE_INTERVAL 60  // seconds
 #define MQTT_KEEPALIVE_TIMEOUT (MQTT_KEEPALIVE_INTERVAL / 2) //seconds
-// zlib compression levels: 1 is lowest (fastest), 9 is biggest (slowest)
-#define COMPRESS_LEVEL 9
-// buffer for compressed data
-// zlib doc: "Upon entry, destLen is the total size of the destination
-// buffer, which must be at least 0.1% larger than sourceLen plus 12 bytes."
-#define COMPRESS_BUF_SIZE ((ZMQ_MAX_MSG_SIZE * 1001) / 1000 + 12 + 1)
 
 #define CHECK_ERR(CMD, ...)               \
 	do {                                  \
@@ -165,16 +158,10 @@ static int zmq_reader_handler(zloop_t *loop, zsock_t *reader, void *arg) {
 	strncpy(read_arg->mqtt_topic_prefix_end, msg_topic + strlen(TOPIC_PREFIX),
 		msg_topic_len - strlen(TOPIC_PREFIX));
 	read_arg->mqtt_topic_prefix_end[msg_topic_len - strlen(TOPIC_PREFIX)] = 0;
-	// compress data
-	zframe_t *payload_frame = zmsg_last(msg);
-	static unsigned char compress_buf[COMPRESS_BUF_SIZE];
-	unsigned long compress_len = COMPRESS_BUF_SIZE;
-	int ret = compress2(compress_buf, &compress_len, zframe_data(payload_frame),
-		zframe_size(payload_frame), COMPRESS_LEVEL);
-	CHECK_ERR_GT(ret != Z_OK, err, "compress2 error - result: %d\n", ret);
 	// send
-	ret = MQTTClient_publish(*read_arg->mqtt_client, read_arg->mqtt_topic_buff,
-		(int)compress_len, compress_buf, MQTT_QOS, 0, NULL);
+	zframe_t *payload_frame = zmsg_last(msg);
+	int ret = MQTTClient_publish(*read_arg->mqtt_client, read_arg->mqtt_topic_buff,
+		(int)zframe_size(payload_frame), zframe_data(payload_frame), MQTT_QOS, 0, NULL);
 	if (ret != MQTTCLIENT_SUCCESS) {
 		fprintf(stderr, "message was not published, err code:%d\n", ret);
 		// TODO buffer message

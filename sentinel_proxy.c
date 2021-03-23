@@ -172,6 +172,38 @@ err:
 	return 0;
 }
 
+static int zmq_monitor_reader_handler(zloop_t *loop, zsock_t *reader, void *arg) {
+	// printf("aaaaa\n");
+	zmsg_t *msg = zmsg_recv(reader);
+
+	size_t size = zmsg_size(msg);
+	// printf("size: %d\n", size);
+
+	// it has 3 parts
+	// https://github.com/zeromq/cppzmq/commit/1f05e0d111197c64be32ad5aecd59f4d1b05a819
+	// - name - TYP eventu - ACCEPTED, HANDSHAKE_SUCCEDED, DISCONNECTED - tyhle vraci minipoty
+	// typ sledovanych udalosti se da nastavit 
+	// - value - error code  OR fd OR reconnect interval
+	// - address - adresa socketu
+
+	for(size_t i = 0; i < size ; i++) {
+		printf("-----------------------------\n");
+		zframe_t *f = zmsg_next(msg);
+		size_t f_data_len = zframe_size(f);
+		unsigned char *f_data = zframe_data(f);
+
+		for (int i = 0; i < f_data_len; i++) {
+			printf("%c", *f_data);
+			f_data++;
+		}
+		printf("\n");
+	}
+
+	zmsg_destroy(&msg);
+	return 0;
+}
+
+
 // It alocates memory and returns pointer to it.
 // Caller is responsible for its freeing.
 static char *get_name_from_cert(const char *filename) {
@@ -263,6 +295,16 @@ static void run_proxy(const struct proxy_conf *conf) {
 	ret = zsock_bind(receiver, "%s", conf->local_socket);
 	CHECK_ERR_FATAL(ret == -1, "Couldn't bind to local ZMQ socket\n");
 
+	//zmq monitor
+	zactor_t *recv_monitor = zactor_new(zmonitor, receiver);
+	// prints logs to stdout/stderr
+	zstr_sendx(recv_monitor, "VERBOSE", NULL);
+
+	zstr_sendx(recv_monitor, "LISTEN", "ALL", NULL);
+	zstr_sendx(recv_monitor, "START", NULL);
+	// zstr_sendx(recv_monitor, "VERBOSE", "LISTEN", "ALL", "START", NULL);
+	zsock_wait(recv_monitor);
+
 	zloop_t *loop = zloop_new();
 	CHECK_ERR_FATAL(!loop, "couldn't create zloop\n");
 	struct reader_arg read_arg = {
@@ -272,6 +314,12 @@ static void run_proxy(const struct proxy_conf *conf) {
 	};
 	ret = zloop_reader(loop, receiver, zmq_reader_handler, &read_arg);
 	CHECK_ERR_FATAL(ret == -1, "couldn't register zloop reader\n");
+
+
+	ret = zloop_reader(loop, (zsock_t*)recv_monitor, zmq_monitor_reader_handler, NULL);
+	CHECK_ERR_FATAL(ret == -1, "couldn't register zloop monitor reader\n");
+
+
 
 	struct keep_alive_arg keep_al_arg = {
 		.client = &client,
@@ -294,6 +342,9 @@ static void run_proxy(const struct proxy_conf *conf) {
 	// teardown
 	zloop_destroy(&loop);
 	zsock_destroy(&receiver);
+
+	zactor_destroy(&recv_monitor);
+
 	mqtt_disconnect(&client, status_topic);
 	MQTTClient_destroy(&client);
 	free(data_topic);

@@ -147,6 +147,16 @@ static int zmq_reader_handler(zloop_t *loop, zsock_t *reader, void *arg) {
 		"ignoring mallformed message (%ld parts)\n", zmsg_size(msg));
 	// extract zmq topic
 	zframe_t *topic_frame = zmsg_first(msg);
+
+	char *meta = zframe_meta(topic_frame, "Peer-Address");
+	printf("%s\n", meta);
+	// char *meta1 = zframe_meta(topic_frame, "User-Id");
+	// printf("%s\n", meta1);
+	char *meta2 = zframe_meta(topic_frame, "Socket-Type");
+	printf("%s\n", meta2);
+	// char *meta3 = zframe_meta(topic_frame, "Routing-Id");
+	// printf("%s\n", meta3);
+
 	size_t msg_topic_len = zframe_size(topic_frame);
 	unsigned char *msg_topic = zframe_data(topic_frame);
 	// check zmq topic

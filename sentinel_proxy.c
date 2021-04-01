@@ -305,6 +305,13 @@ static void run_proxy(const struct proxy_conf *conf) {
 	ret = zsock_bind(receiver, "%s", conf->local_socket);
 	CHECK_ERR_FATAL(ret == -1, "Couldn't bind to local ZMQ socket\n");
 
+	int fd = zsock_fd(receiver);
+	printf("fd: %d\n", fd);
+
+	char *m = zsock_identity(receiver);
+	printf("identity: %s\n", m);
+	
+
 	//zmq monitor
 	zactor_t *recv_monitor = zactor_new(zmonitor, receiver);
 	// prints logs to stdout/stderr

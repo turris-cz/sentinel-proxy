@@ -13,7 +13,10 @@ bin_PROGRAMS = \
 
 sentinel_proxy_SOURCES = \
 	sentinel_proxy.c \
-	proxy_conf.c
+	proxy_conf.c \
+	proxy_zmq.c \
+	proxy_zmq_msg.c\
+	log.c
 sentinel_device_token_SOURCES = \
 	sentinel_device_token.c
 libsentinel_device_token_la_SOURCES = \
@@ -22,13 +25,19 @@ libsentinel_device_token_la_SOURCES = \
 sentinel_proxy_CFLAGS = \
 	$(LIBCRYPTO_CFLAGS) \
 	$(ZLIB_CFLAGS) \
-	$(LIBCZMQ_CFLAGFS) \
-	$(LIBCONFIG_CFLAGS)
+	$(LIBZMQ_CFLAGFS) \
+	$(LIBCONFIG_CFLAGS) \
+	$(LIBEVENT_CFLAGS) \
+	$(logc_CFLAGS) \
+	$(logc_argp_CFLAGS)
 sentinel_proxy_LDFLAGS = \
 	$(LIBCRYPTO_LIBS) \
 	$(ZLIB_LIBS) \
-	$(LIBCZMQ_LIBS) \
-	$(LIBCONFIG_LIBS)
+	$(LIBZMQ_LIBS) \
+	$(LIBCONFIG_LIBS) \
+	$(LIBEVENT_LIBS) \
+	$(logc_LIBS) \
+	$(logc_argp_LIBS)
 sentinel_proxy_LDADD = \
 	libsentinel-device-token.la
 sentinel_device_token_CFLAGS = \

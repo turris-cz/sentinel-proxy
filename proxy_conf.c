@@ -22,9 +22,11 @@
 #include <libconfig.h>
 #include <string.h>
 #include <unistd.h>
+#include <logc_argp.h>
 
 #include "proxy_conf.h"
 #include "config.h"
+#include "log.h"
 
 const char *argp_program_version = PACKAGE_STRING;
 const char *argp_program_bug_address = "<packaging@turris.cz>";
@@ -41,10 +43,12 @@ static struct argp_option options[] = {
 };
 
 static bool is_accessible(const char *filename) {
+	TRACE_FUNC;
 	return (access(filename, R_OK) == 0);
 }
 
 static void verify_access(const char *filename) {
+	TRACE_FUNC;
 	if (!is_accessible(filename)) {
 		fprintf(stderr, "%s can't be accessed\n", filename);
 		exit(EXIT_FAILURE);
@@ -52,6 +56,7 @@ static void verify_access(const char *filename) {
 }
 
 static error_t parse_opt (int key, char *arg, struct argp_state *state) {
+	TRACE_FUNC;
 	struct proxy_conf *conf = state->input;
 	switch (key) {
 		case 'S':
@@ -88,12 +93,22 @@ static error_t parse_opt (int key, char *arg, struct argp_state *state) {
 }
 
 static void load_cli_opts(int argc, char *argv[], struct proxy_conf *conf) {
+	TRACE_FUNC;
 	// This function might be called multiple times and must be idempotent
-	struct argp argp = {options, parse_opt, 0, doc};
+	logc_argp_log = log_sentinel_proxy; // set our log to be configured by logc_argp
+	struct argp argp = {
+		.options = options,
+		.parser = parse_opt,
+		.doc = doc,
+		.children = (struct argp_child[]){{&logc_argp_parser, 0, "Logging", 2},
+			{NULL}},
+	};
+
 	argp_parse(&argp, argc, argv, 0, 0, conf);
 }
 
 static void load_config_file(const char *path, struct proxy_conf *conf) {
+	TRACE_FUNC;
 	config_t cfg;
 	const char *tmp="";
 	config_init(&cfg);
@@ -110,6 +125,7 @@ static void load_config_file(const char *path, struct proxy_conf *conf) {
 }
 
 void load_conf(int argc, char *argv[], struct proxy_conf *conf) {
+	TRACE_FUNC;
 	// We load cli params first (to get config file path most notably) Then we
 	// load config file if exists end is readable. If that is succesfull we have
 	// to load cli params once more - since they have higher priority.

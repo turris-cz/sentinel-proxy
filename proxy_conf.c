@@ -22,9 +22,11 @@
 #include <libconfig.h>
 #include <string.h>
 #include <unistd.h>
+#include <logc_argp.h>
 
 #include "proxy_conf.h"
 #include "config.h"
+#include "log.h"
 
 const char *argp_program_version = PACKAGE_STRING;
 const char *argp_program_bug_address = "<packaging@turris.cz>";
@@ -89,7 +91,15 @@ static error_t parse_opt (int key, char *arg, struct argp_state *state) {
 
 static void load_cli_opts(int argc, char *argv[], struct proxy_conf *conf) {
 	// This function might be called multiple times and must be idempotent
-	struct argp argp = {options, parse_opt, 0, doc};
+	logc_argp_log = log_sentinel_proxy; // set our log to be configured by logc_argp
+	struct argp argp = {
+		.options = options,
+		.parser = parse_opt,
+		.doc = doc,
+		.children = (struct argp_child[]){{&logc_argp_parser, 0, "Logging", 2},
+			{NULL}},
+	};
+
 	argp_parse(&argp, argc, argv, 0, 0, conf);
 }
 

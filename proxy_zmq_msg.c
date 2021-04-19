@@ -36,30 +36,57 @@ void proxy_zmq_msg_init(struct proxy_zmq_msg *msg, size_t init_parts) {
 
 bool proxy_zmq_msg_rdy_recv(void *zmq_sock) {
 	TRACE_FUNC;
-	int events = 0;
+	uint32_t events = 0;
 	size_t events_len = sizeof(events);
 	int ret = zmq_getsockopt(zmq_sock, ZMQ_EVENTS, &events, &events_len);
+	assert(ret == 0);
 	if (events & ZMQ_POLLIN)
 		return true;
 	return false;
 }
 
 int proxy_zmq_msg_recv(void *zmq_sock, struct proxy_zmq_msg *msg) {
+	
 	TRACE_FUNC;
 	zmq_msg_t *ptr = msg->msg_parts;
+
+
+	// printf("alloc parts: %d\n", msg->alloc_parts);
+	// printf("recv parts: %d\n", msg->recv_parts);
+	// printf("msg parts: %p\n",msg->msg_parts);
+
+	// printf("ptr: %p\n",ptr);
+
+
 	while (true) {
-		if (msg->recv_parts = msg->alloc_parts) {
+		// printf("sssssss\n");
+
+		if (msg->recv_parts == msg->alloc_parts) {
+			// printf("realoc\n");
+
 			msg->alloc_parts *= 2;
 			msg->msg_parts = realloc(msg->msg_parts,
 				sizeof(*msg->msg_parts) * msg->alloc_parts);
+				
 		}
-		zmq_msg_init(ptr);
-		if (zmq_msg_recv(zmq_sock, ptr, ZMQ_DONTWAIT))
+
+		int ret = zmq_msg_init(ptr);
+		assert (ret != -1);
+
+		if (zmq_msg_recv(ptr, zmq_sock, 0) == -1) {
+			// printf("error recv\n");
 			return -1;
+		}
+
+
 		msg->recv_parts++;
+
 		if (!zmq_msg_more(ptr))
 			break;
+
 		ptr++;
+		// printf("ffffffffffffff\n");
+
 	}
 	return 0;
 }

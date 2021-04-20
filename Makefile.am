@@ -15,7 +15,8 @@ sentinel_proxy_SOURCES = \
 	sentinel_proxy.c \
 	proxy_conf.c \
 	proxy_zmq.c \
-	proxy_zmq_msg.c\
+	proxy_zmq_msg.c \
+	proxy_mqtt.c \
 	log.c
 sentinel_device_token_SOURCES = \
 	sentinel_device_token.c

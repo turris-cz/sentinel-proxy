@@ -22,24 +22,26 @@
 #include "config.h"
 #include "proxy_conf.h"
 #include "proxy_zmq.h"
+#include "proxy_mqtt.h"
 #include "log.h"
 
 static void discard_cb(int severity, const char *msg) {}
 
-static void loopbrake_cd(evutil_socket_t sig, short events, void *arg) {
+static void loopbrake_cb(evutil_socket_t sig, short events, void *arg) {
 	TRACE_FUNC;
 	event_base_loopbreak((struct event_base *)arg);
 }
 
 static void run(const struct proxy_conf *conf) {
 	TRACE_FUNC;
+
 	event_set_log_callback(discard_cb);
 	struct event_base *ev_base = event_base_new(); 
 	struct event *sigint_ev = event_new(ev_base, SIGINT, EV_SIGNAL,
-		loopbrake_cd, ev_base);
+		loopbrake_cb, ev_base);
 	event_add(sigint_ev, NULL);
 	struct event *sigterm_ev = event_new(ev_base, SIGTERM, EV_SIGNAL,
-		loopbrake_cd, ev_base);
+		loopbrake_cb, ev_base);
 	event_add(sigterm_ev, NULL);
 
 	// setup mqtt client
@@ -47,6 +49,10 @@ static void run(const struct proxy_conf *conf) {
 	struct proxy_zmq proxy_zmq;
 	proxy_zmq_init(&proxy_zmq, ev_base, conf->local_socket);
 	
+
+	struct proxy_mqtt mqtt;
+	proxy_mqtt_init(&mqtt, ev_base, conf);
+
 	printf("dispatch\n");
 	event_base_dispatch(ev_base);
 	

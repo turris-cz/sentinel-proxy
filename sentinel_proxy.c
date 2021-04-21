@@ -45,9 +45,9 @@ static void run(const struct proxy_conf *conf) {
 	event_add(sigterm_ev, NULL);
 
 	// setup mqtt client
-	printf("asa\n");
-	struct proxy_zmq proxy_zmq;
-	proxy_zmq_init(&proxy_zmq, ev_base, conf->local_socket);
+	// printf("asa\n");
+	// struct proxy_zmq proxy_zmq;
+	// proxy_zmq_init(&proxy_zmq, ev_base, conf->local_socket);
 	
 
 	struct proxy_mqtt mqtt;
@@ -61,7 +61,7 @@ static void run(const struct proxy_conf *conf) {
 
 	// destroy mqtt client
 
-	proxy_zmq_destroy(&proxy_zmq);
+	// proxy_zmq_destroy(&proxy_zmq);
 
 	event_base_free(ev_base);
 }

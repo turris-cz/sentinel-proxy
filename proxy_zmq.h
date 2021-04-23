@@ -23,6 +23,7 @@
 #include <zmq.h>
 
 #include "proxy_zmq_msg.h"
+#include "proxy_mqtt.h"
 
 struct proxy_zmq {
 	void *ctx;
@@ -31,6 +32,7 @@ struct proxy_zmq {
 	struct event *recv_data_sock_ev;
 	struct event *recv_mon_sock_ev;
 	struct proxy_zmq_msg *msg_buff;
+	struct proxy_mqtt *mqtt;
 };
 
 int proxy_zmq_init(struct proxy_zmq *zmq, struct event_base *ev_base,

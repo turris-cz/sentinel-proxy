@@ -19,100 +19,53 @@
 #include <stdlib.h>
 
 #include "proxy_zmq.h"
-#include "log.h"
+#include "common.h"
 
 #define MONITOR "inproc://monitor"
 #define MSG_INIT_SIZE 2
 
 static void proc_data_sock_data(struct proxy_zmq *zmq) {
 	TRACE_FUNC;
-	// zmq_msg_t *part = malloc(sizeof(*part));
-	// while (true) {
-	// 	// Create an empty ØMQ message to hold the message part
-	// 	int rc = zmq_msg_init (part);
-	// 	assert (rc == 0);
-	// 	// Block until a message is available to be received from socket
-	// 	rc = zmq_msg_recv(part, zmq->data_sock, ZMQ_DONTWAIT);
-	// 	assert (rc != -1);
-	// 	rc = zmq_msg_more (part);
-	// 	zmq_msg_close (part);
-		
-	// 	if (rc) {
-	// 		fprintf (stderr, "more\n");
-	// 	}
-	// 	else {
-	// 		fprintf (stderr, "end\n");
-	// 		break;
-	// 	}
-	// }
-	// free(part);
-	// printf("msg has %d parts\n", zmq->msg_buff->recv_parts);
+	CHECK_ERR_VOID_LOG(zmq->msg_buff->recv_parts != 2,
+		"Received malformed ZMQ message - message has %ld parts instead of two",
+		zmq->msg_buff->recv_parts);
 
+	uint8_t *topic = zmq_msg_data(&zmq->msg_buff->msg_parts[0]);
+	size_t topic_len = zmq_msg_size(&zmq->msg_buff->msg_parts[0]);
+	CHECK_ERR_VOID_LOG(topic_len < TOPIC_PREFIX_LEN
+		|| topic_len > ZMQ_MAX_TOPIC_LEN
+		|| strncmp(TOPIC_PREFIX, topic, TOPIC_PREFIX_LEN),
+		"Received malformed ZMQ message - wrong message topic");
 
+	uint8_t *data = zmq_msg_data(&zmq->msg_buff->msg_parts[1]);
+	size_t data_len = zmq_msg_size(&zmq->msg_buff->msg_parts[1]);
+
+	proxy_mqtt_send_data(zmq->mqtt, topic, topic_len, data, data_len);
 }
 
 static void proc_mon_sock_data(struct proxy_zmq *zmq) {
 	TRACE_FUNC;
-	// zmq_msg_t part;
-	// while (true) {
-	// 	// Create an empty ØMQ message to hold the message part
-	// 	int rc = zmq_msg_init (&part);
-	// 	assert (rc == 0);
-	// 	// Block until a message is available to be received from socket
-	// 	rc = zmq_msg_recv(&part, zmq->mon_sock, ZMQ_DONTWAIT);
-	// 	assert (rc != -1);
-	// 	if (zmq_msg_more (&part))
-	// 	fprintf (stderr, "more\n");
-	// 	else {
-	// 	fprintf (stderr, "end\n");
-	// 	break;
-	// }
-	// zmq_msg_close (&part); }
-	// printf("msg has %d parts\n", zmq->msg_buff->recv_parts);
-	// zmq_msg_t *part1 = malloc(sizeof(*part1));
-	// int rc = zmq_msg_init (part1);
-	// assert (rc == 0);
-	// // Block until a message is available to be received from socket
-	// rc = zmq_msg_recv(part1, zmq->mon_sock, ZMQ_DONTWAIT);
-	// assert (rc != -1);
-	// zmq_msg_t *part2 = malloc(sizeof(*part2));
-	// rc = zmq_msg_init (part2);
-	// assert (rc == 0);
-	// // Block until a message is available to be received from socket
-	// rc = zmq_msg_recv(part2, zmq->mon_sock, ZMQ_DONTWAIT);
-	// assert (rc != -1);
-	// proxy_zmq_msg_recv(zmq->mon_sock, zmq->msg_buff);
 
-	
 }
 
 static void recv_data_sock_cb(evutil_socket_t fd, short events, void *arg) {
 	TRACE_FUNC;
 	struct proxy_zmq *zmq = (struct proxy_zmq *)arg;
 	while(proxy_zmq_msg_rdy_recv(zmq->data_sock)) {
-		if (proxy_zmq_msg_recv(zmq->data_sock, zmq->msg_buff)) {
-			// TODO handle error
-			printf("data\n");
-		} else {
+		if (!proxy_zmq_msg_recv(zmq->data_sock, zmq->msg_buff))
 			proc_data_sock_data(zmq);
-		}
 		proxy_zmq_msg_close(zmq->msg_buff);
-		// proc_data_sock_data(zmq);
 	}
 }
 
 static void recv_mon_sock_cb(evutil_socket_t fd, short events, void *arg) {
 	TRACE_FUNC;
 	struct proxy_zmq *zmq = (struct proxy_zmq *)arg;
+	// ZMQ FDs are by design edge-triggered
 	while(proxy_zmq_msg_rdy_recv(zmq->mon_sock)) {
-		if (proxy_zmq_msg_recv(zmq->mon_sock, zmq->msg_buff)) {
-			// TODO handle error
-			printf("mon\n");
-		} else {
+		if (!proxy_zmq_msg_recv(zmq->mon_sock, zmq->msg_buff))
 			proc_mon_sock_data(zmq);
-		}
 		proxy_zmq_msg_close(zmq->msg_buff);
-		// proc_mon_sock_data(zmq);
 	}
 }
 
@@ -191,33 +144,8 @@ int proxy_zmq_init(struct proxy_zmq *zmq, struct event_base *ev_base,
 	ret = event_add(zmq->recv_data_sock_ev, NULL);
 	assert(ret == 0);
 
-	// while (true) {
-	// 	zmq_msg_t part;
-	// 	while (true) {
-	// 		// Create an empty ØMQ message to hold the message part
-	// 		int rc = zmq_msg_init (&part);
-	// 		assert (rc == 0);
-	// 		// Block until a message is available to be received from socket
-	// 		rc = zmq_msg_recv(&part, zmq->mon_sock, 0);
-	// 		assert (rc != -1);
-	// 		if (zmq_msg_more (&part))
-	// 		fprintf (stderr, "more\n");
-	// 		else {
-	// 		fprintf (stderr, "end\n");
-	// 		break;
-	// 	}
-	// 	zmq_msg_close (&part); }
-	// }
-
-
-	// printf("d\n");
 	zmq->msg_buff = malloc(sizeof(*zmq->msg_buff));
 	proxy_zmq_msg_init(zmq->msg_buff, MSG_INIT_SIZE);
-
-	// printf("alloc parts: %d\n", zmq->msg_buff->alloc_parts);
-	// printf("recv parts: %d\n", zmq->msg_buff->recv_parts);
-	// printf("msg parts: %p\n",zmq->msg_buff->msg_parts);
-
 
 	return 0;
 }

@@ -23,8 +23,6 @@
 #include <logc.h>
 #include <logc_util.h>
 
-#define TRACE_FUNC TRACE(__func__)
-
 extern log_t log_sentinel_proxy;
 
 #endif /*__SENTINEL_PROXY_LOG_H__*/

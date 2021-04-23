@@ -11,7 +11,8 @@ def run(socket):
     with zmq.Context() as context, context.socket(zmq.PUSH) as zmq_sock:
         zmq_sock.connect(socket)
         while True:
-            first = bytes([random.choice(string.ascii_letters.encode()) for _ in range(5)])
+            # first = bytes([random.choice(string.ascii_letters.encode()) for _ in range(5)])
+            first = b"sentinel/collect/data-collector-01"
             second = bytes([random.choice(string.ascii_letters.encode()) for _ in range(5)])
             print(f"sending data: {first}, {second}")
             zmq_sock.send_multipart([first, second])

@@ -19,7 +19,7 @@
 #include <stdlib.h>
 
 #include "proxy_zmq_msg.h"
-#include "log.h"
+#include "common.h"
 
 void proxy_zmq_msg_init(struct proxy_zmq_msg *msg, size_t init_parts) {
 	TRACE_FUNC;
@@ -31,62 +31,32 @@ void proxy_zmq_msg_init(struct proxy_zmq_msg *msg, size_t init_parts) {
 	msg->recv_parts = 0;
 }
 
-// void init_proxy_msg(struct proxy_zmq_msg *msg) {
-// }
-
 bool proxy_zmq_msg_rdy_recv(void *zmq_sock) {
 	TRACE_FUNC;
 	uint32_t events = 0;
 	size_t events_len = sizeof(events);
-	int ret = zmq_getsockopt(zmq_sock, ZMQ_EVENTS, &events, &events_len);
-	assert(ret == 0);
+	zmq_getsockopt(zmq_sock, ZMQ_EVENTS, &events, &events_len);
 	if (events & ZMQ_POLLIN)
 		return true;
 	return false;
 }
 
 int proxy_zmq_msg_recv(void *zmq_sock, struct proxy_zmq_msg *msg) {
-	
 	TRACE_FUNC;
 	zmq_msg_t *ptr = msg->msg_parts;
-
-
-	// printf("alloc parts: %d\n", msg->alloc_parts);
-	// printf("recv parts: %d\n", msg->recv_parts);
-	// printf("msg parts: %p\n",msg->msg_parts);
-
-	// printf("ptr: %p\n",ptr);
-
-
 	while (true) {
-		// printf("sssssss\n");
-
 		if (msg->recv_parts == msg->alloc_parts) {
-			// printf("realoc\n");
-
 			msg->alloc_parts *= 2;
 			msg->msg_parts = realloc(msg->msg_parts,
 				sizeof(*msg->msg_parts) * msg->alloc_parts);
-				
 		}
-
-		int ret = zmq_msg_init(ptr);
-		assert (ret != -1);
-
-		if (zmq_msg_recv(ptr, zmq_sock, 0) == -1) {
-			// printf("error recv\n");
-			return -1;
-		}
-
-
+		zmq_msg_init(ptr);
+		CHECK_ERR_LOG(zmq_msg_recv(ptr, zmq_sock, 0) == -1,
+			"Couldn't receive ZMQ message part");
 		msg->recv_parts++;
-
 		if (!zmq_msg_more(ptr))
 			break;
-
 		ptr++;
-		// printf("ffffffffffffff\n");
-
 	}
 	return 0;
 }

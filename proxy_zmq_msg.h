@@ -29,7 +29,6 @@ struct proxy_zmq_msg {
 };
 
 void proxy_zmq_msg_init(struct proxy_zmq_msg *msg, size_t init_size);
-// void init_proxy_msg(struct proxy_zmq_msg *msg);
 bool proxy_zmq_msg_rdy_recv(void *zmq_sock);
 int proxy_zmq_msg_recv(void *zmq_sock, struct proxy_zmq_msg *msg);
 void proxy_zmq_msg_close(struct proxy_zmq_msg *msg);

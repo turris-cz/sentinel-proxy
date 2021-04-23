@@ -26,7 +26,7 @@
 
 #include "proxy_conf.h"
 #include "config.h"
-#include "log.h"
+#include "common.h"
 
 const char *argp_program_version = PACKAGE_STRING;
 const char *argp_program_bug_address = "<packaging@turris.cz>";

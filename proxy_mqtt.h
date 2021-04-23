@@ -23,6 +23,8 @@
 #include <MQTTClient.h>
 #include <msgpack.h>
 
+#include  "proxy_conf.h"
+
 struct sentinel_status_mesg {
 	char *action;
 	long long int ts;
@@ -32,7 +34,7 @@ struct proxy_mqtt {
 	char *client_id;
 	char *status_topic;
 	char *data_topic;
-	size_t data_topic_prefix_len;
+	char *data_topic_prefix_end;
 	MQTTClient client;
 	MQTTClient_connectOptions *conn_opts;
 	MQTTClient_SSLOptions *ssl_opts;
@@ -47,6 +49,8 @@ struct proxy_mqtt {
 
 int proxy_mqtt_init(struct proxy_mqtt *mqtt, struct event_base *ev_base,
 	const struct proxy_conf *conf);
-
+void proxy_mqtt_destroy(struct proxy_mqtt *mqtt);
+void proxy_mqtt_send_data(struct proxy_mqtt *mqtt, uint8_t *topic,
+	size_t topic_len, uint8_t *data, size_t data_len);
 
 #endif /*__SENTINEL_PROXY_MQTT_H__*/

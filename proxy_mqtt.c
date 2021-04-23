@@ -19,30 +19,18 @@
 #include <openssl/ssl.h>
 #include <openssl/x509v3.h>
 
-
-#include "proxy_conf.h"
 #include "proxy_mqtt.h"
-#include "utils.h"
+#include "common.h"
 
-
-#define CLIENT_ID_MAX_LEN 64
-
-#define TOPIC_PREFIX "sentinel/collect/"
-
-#define HEARTBEAT_TIMEOUT (60 * 5) // seconds
-
-#define ZMQ_MAX_TOPIC_LEN 256
-#define ZMQ_MAX_MSG_SIZE (1024 * 1024 * 2)
-#define ZMQ_MAX_WAITING_MESSAGES 50
-// QoS levels - see here:
+#define MQTT_CLIENT_ID_MAX_LEN 64
 // https://www.hivemq.com/blog/mqtt-essentials-part-6-mqtt-quality-of-service-levels
-#define MQTT_QOS 0
+#define MQTT_QOS_LEVEL 0
 #define MQTT_KEEPALIVE_INTERVAL 60  // seconds
 #define MQTT_KEEPALIVE_TIMEOUT (MQTT_KEEPALIVE_INTERVAL / 2) //seconds
-
 #define MQTT_DISCONNECT_TIMEOUT 5000 // miliseconds
 
-
+// #define SENTINEL_HEARTBEAT_TIMEOUT (60 * 5) // seconds
+#define SENTINEL_HEARTBEAT_TIMEOUT 30 // seconds
 #define HEARTBEAT_EV "heartbeat"
 #define DISCONNECT_EV "disconnect"
 #define LAST_WILL_DISCONNECT_EV "last_will_disconnect"
@@ -72,7 +60,7 @@ static void send_heartbeat(struct proxy_mqtt *mqtt) {
 	mqtt->status_mesg->ts = time(NULL);
 	compose_sentinel_mesg(mqtt->sbuff, mqtt->packer, mqtt->status_mesg);
 	int ret = MQTTClient_publish(mqtt->client, mqtt->status_topic,
-		mqtt->sbuff->size, mqtt->sbuff->data, MQTT_QOS, 0, NULL);
+		mqtt->sbuff->size, mqtt->sbuff->data, MQTT_QOS_LEVEL, 0, NULL);
 	LOG_ERR(ret != MQTTCLIENT_SUCCESS, "Cannot send heartbeat");
 	msgpack_sbuffer_clear(mqtt->sbuff);
 }
@@ -83,7 +71,7 @@ static void send_disconnect(struct proxy_mqtt *mqtt) {
 	mqtt->status_mesg->ts = time(NULL);
 	compose_sentinel_mesg(mqtt->sbuff, mqtt->packer, mqtt->status_mesg);
 	int ret = MQTTClient_publish(mqtt->client, mqtt->status_topic,
-		mqtt->sbuff->size, mqtt->sbuff->data, MQTT_QOS, 0, NULL);
+		mqtt->sbuff->size, mqtt->sbuff->data, MQTT_QOS_LEVEL, 0, NULL);
 	LOG_ERR(ret != MQTTCLIENT_SUCCESS, "Cannot send disconnect");
 	msgpack_sbuffer_clear(mqtt->sbuff);
 }
@@ -92,10 +80,12 @@ static void mqtt_connect(struct proxy_mqtt *mqtt) {
 	TRACE_FUNC;
 	int ret = MQTTClient_connect(mqtt->client, mqtt->conn_opts);
 	if (ret == MQTTCLIENT_SUCCESS) {
-		INFO("Connected to server");
+		INFO("Connected to MQTT broker");
 		send_heartbeat(mqtt);
+		struct timeval tm = {SENTINEL_HEARTBEAT_TIMEOUT, 0};
+		event_add(mqtt->sentinel_heartbeat_ev, &tm);
 	} else {
-		ERROR("Cannot connect to server\nReconnect in %d s",
+		ERROR("Cannot connect to MQTT broker\nReconnect in %d s",
 			MQTT_KEEPALIVE_TIMEOUT);
 	}
 }
@@ -105,10 +95,12 @@ static void mqtt_disconnect(struct proxy_mqtt *mqtt) {
 	send_disconnect(mqtt);
 	// leave some time to deliver in-flight messages
 	int ret = MQTTClient_disconnect(mqtt->client, MQTT_DISCONNECT_TIMEOUT);
-	if (ret == MQTTCLIENT_SUCCESS)
-		INFO("Disconnected from server");
+	if (ret == MQTTCLIENT_SUCCESS) {
+		INFO("Disconnected from MQTT broker");
+		event_del(mqtt->sentinel_heartbeat_ev);
+	}
 	else
-		ERROR("Cannot disconnect from server");
+		ERROR("Cannot disconnect from MQTT broker");
 }
 
 static void sentinel_heartbeat_cb(evutil_socket_t fd, short events, void *arg) {
@@ -138,7 +130,6 @@ static void compose_last_will(msgpack_sbuffer *sbuff, msgpack_packer *pk) {
 
 static void mqtt_setup(const struct proxy_conf *conf, struct proxy_mqtt *mqtt) {
 	TRACE_FUNC;
-	
 	MQTTClient_SSLOptions ssl_opts = MQTTClient_SSLOptions_initializer;
 	// Enables verification of the server certificate.
 	ssl_opts.enableServerCertAuth = 1;
@@ -171,8 +162,8 @@ static void mqtt_setup(const struct proxy_conf *conf, struct proxy_mqtt *mqtt) {
 	conn_opts.cleansession = 1;
 
 	memcpy(mqtt->conn_opts, &conn_opts, sizeof(*mqtt->conn_opts));
-	memcpy(mqtt->conn_opts, &ssl_opts, sizeof(*mqtt->ssl_opts));
-	memcpy(mqtt->conn_opts, &lw_opts, sizeof(*mqtt->will_opts));
+	memcpy(mqtt->ssl_opts, &ssl_opts, sizeof(*mqtt->ssl_opts));
+	memcpy(mqtt->will_opts, &lw_opts, sizeof(*mqtt->will_opts));
 	mqtt->conn_opts->ssl = mqtt->ssl_opts;
 	mqtt->conn_opts->will = mqtt->will_opts;
 }
@@ -198,39 +189,38 @@ static int get_name_from_cert(const char *filename, char **name, int name_len) {
 
 int proxy_mqtt_init(struct proxy_mqtt *mqtt, struct event_base *ev_base,
 		const struct proxy_conf *conf) {
-	
-	mqtt->client_id = malloc(sizeof(*mqtt->client_id) * CLIENT_ID_MAX_LEN);
+	TRACE_FUNC;
+	mqtt->client_id = malloc(sizeof(*mqtt->client_id) * MQTT_CLIENT_ID_MAX_LEN);
 	CHECK_ERR(get_name_from_cert(conf->client_cert_file, &mqtt->client_id,
-		CLIENT_ID_MAX_LEN));
-
-	FILE *tmp = open_memstream(&(mqtt->data_topic), &mqtt->data_topic_prefix_len);
+		MQTT_CLIENT_ID_MAX_LEN));
+	
+	size_t tmp_len = 0;
+	FILE *tmp = open_memstream(&mqtt->data_topic, &tmp_len);
 	fprintf(tmp, "%s%s/%s/", TOPIC_PREFIX, mqtt->client_id, conf->device_token);
 	fclose(tmp);
 	// we need more space for topic suffix from received ZMQ message
 	mqtt->data_topic = realloc(mqtt->data_topic,
-		mqtt->data_topic_prefix_len + ZMQ_MAX_TOPIC_LEN);
+		tmp_len + ZMQ_MAX_TOPIC_LEN);
+	mqtt->data_topic_prefix_end = mqtt->data_topic + tmp_len;
 
-	tmp = open_memstream(&mqtt->status_topic, NULL);
+	tmp = open_memstream(&mqtt->status_topic, &tmp_len);
 	fprintf(tmp, "%s%s/%s/status", TOPIC_PREFIX, mqtt->client_id,
 		conf->device_token);
 	fclose(tmp);
 
 	mqtt->packer = msgpack_packer_new(NULL, NULL);
-
 	mqtt->last_will_payload = msgpack_sbuffer_new();
 	msgpack_sbuffer_init(mqtt->last_will_payload);
+	mqtt->sbuff = msgpack_sbuffer_new();
+	msgpack_sbuffer_init(mqtt->sbuff);
+	mqtt->status_mesg = malloc(sizeof(*mqtt->status_mesg));
 
 	mqtt->conn_opts = malloc(sizeof(*mqtt->conn_opts));
 	mqtt->ssl_opts = malloc(sizeof(*mqtt->ssl_opts));
 	mqtt->will_opts = malloc(sizeof(*mqtt->will_opts));
 	mqtt_setup(conf, mqtt);
 
-	mqtt->sbuff = msgpack_sbuffer_new();
-	msgpack_sbuffer_init(mqtt->sbuff);
-
-	mqtt->status_mesg = malloc(sizeof(*mqtt->status_mesg));
-
-	int ret = MQTTClient_create(mqtt->client, conf->upstream_srv,
+	int ret = MQTTClient_create(&mqtt->client, conf->upstream_srv,
 		mqtt->client_id, MQTTCLIENT_PERSISTENCE_NONE, NULL);
 	CHECK_ERR_LOG(ret != MQTTCLIENT_SUCCESS, "Cannot create MQTT client");
 
@@ -241,8 +231,6 @@ int proxy_mqtt_init(struct proxy_mqtt *mqtt, struct event_base *ev_base,
 
 	mqtt->sentinel_heartbeat_ev = event_new(ev_base, -1, EV_PERSIST,
 		sentinel_heartbeat_cb, mqtt);
-	tm = (struct timeval) {HEARTBEAT_TIMEOUT, 0};
-	event_add(mqtt->sentinel_heartbeat_ev, &tm);
 
 	mqtt_connect(mqtt);
 
@@ -250,58 +238,32 @@ int proxy_mqtt_init(struct proxy_mqtt *mqtt, struct event_base *ev_base,
 }
 
 void proxy_mqtt_destroy(struct proxy_mqtt *mqtt) {
-	
+	TRACE_FUNC;
 	if (MQTTClient_isConnected(mqtt->client))
 		mqtt_disconnect(mqtt);
-	
 	event_free(mqtt->sentinel_heartbeat_ev);
 	event_free(mqtt->mqtt_client_yeld_ev);
-
 	MQTTClient_destroy(&mqtt->client);
-
-	free(mqtt->status_mesg);
-	msgpack_sbuffer_free(mqtt->sbuff);
-
 	free(mqtt->will_opts);
 	free(mqtt->ssl_opts);
 	free(mqtt->conn_opts);
+	free(mqtt->status_mesg);
+	msgpack_sbuffer_free(mqtt->sbuff);
 	msgpack_sbuffer_free(mqtt->last_will_payload);
-
 	msgpack_packer_free(mqtt->packer);
-
 	free(mqtt->status_topic);
 	free(mqtt->data_topic);
-
 	free(mqtt->client_id);
-}	
+}
 
-
-// int proxy_mqtt_send_data(struct proxy_mqtt *mqtt, ) {
-
-// 	// compose mqtt topic
-// 	strncpy(read_arg->mqtt_topic_prefix_end, msg_topic + strlen(TOPIC_PREFIX),
-// 		msg_topic_len - strlen(TOPIC_PREFIX));
-// 	read_arg->mqtt_topic_prefix_end[msg_topic_len - strlen(TOPIC_PREFIX)] = 0;
-// 	// send
-
-// }
-
-
-// mqtt setup
-// mqtt connect
-
-// mqtt send
-// mqtt yeld
-
-// mqtt disconnect
-// mqtt free client
-
-
-
-// mqtt get client
-// mqtt connect
-
-// mqtt send heart beat - connect, mqtt timer
-
-// mqtt disconnect
-// mqtt free client
+void proxy_mqtt_send_data(struct proxy_mqtt *mqtt, uint8_t *topic,
+		size_t topic_len, uint8_t *data, size_t data_len) {
+	TRACE_FUNC;
+	// complete MQTT data topic
+	strncpy(mqtt->data_topic_prefix_end, topic + TOPIC_PREFIX_LEN,
+		topic_len - TOPIC_PREFIX_LEN);
+	mqtt->data_topic_prefix_end[topic_len - TOPIC_PREFIX_LEN] = '\0';
+	int ret = MQTTClient_publish(mqtt->client, mqtt->data_topic, data_len, data,
+		MQTT_QOS_LEVEL, 0, NULL);
+	LOG_ERR(ret != MQTTCLIENT_SUCCESS, "Cannot send data");
+}

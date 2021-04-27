@@ -16,7 +16,7 @@ def run(socket):
             second = bytes([random.choice(string.ascii_letters.encode()) for _ in range(5)])
             print(f"sending data: {first}, {second}")
             zmq_sock.send_multipart([first, second])
-            time.sleep(3)
+            # time.sleep(3)
 
 
 def main():

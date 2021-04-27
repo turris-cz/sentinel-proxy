@@ -31,6 +31,7 @@ struct proxy_zmq {
 	void *mon_sock;
 	struct event *recv_data_sock_ev;
 	struct event *recv_mon_sock_ev;
+	struct event *recv_ev;
 	struct proxy_zmq_msg *msg_buff;
 	struct proxy_mqtt *mqtt;
 };

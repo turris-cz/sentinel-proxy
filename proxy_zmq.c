@@ -40,34 +40,88 @@ static void proc_data_sock_data(struct proxy_zmq *zmq) {
 	uint8_t *data = zmq_msg_data(&zmq->msg_buff->msg_parts[1]);
 	size_t data_len = zmq_msg_size(&zmq->msg_buff->msg_parts[1]);
 
-	proxy_mqtt_send_data(zmq->mqtt, topic, topic_len, data, data_len);
+	// proxy_mqtt_send_data(zmq->mqtt, topic, topic_len, data, data_len);
 }
 
-static void proc_mon_sock_data(struct proxy_zmq *zmq) {
+// static void proc_mon_sock_data(struct proxy_zmq *zmq) {
+// 	TRACE_FUNC;
+
+// }
+
+
+
+
+static void recv_cb(evutil_socket_t fd, short events, void *arg) {
 	TRACE_FUNC;
+	
+	struct proxy_zmq *zmq = (struct proxy_zmq *)arg;
+
+	if (!proxy_zmq_msg_recv(zmq->data_sock, zmq->msg_buff)) {
+			// received and should receive more
+			
+			if (proxy_zmq_msg_is_complete(zmq->msg_buff)) {
+				proc_data_sock_data(zmq);
+				proxy_zmq_msg_close(zmq->msg_buff);
+			}
+			event_add(zmq->recv_ev, NULL);
+			event_active(zmq->recv_ev, 0, 0);
+	}
 
 }
+
+
 
 static void recv_data_sock_cb(evutil_socket_t fd, short events, void *arg) {
 	TRACE_FUNC;
 	struct proxy_zmq *zmq = (struct proxy_zmq *)arg;
-	while(proxy_zmq_msg_rdy_recv(zmq->data_sock)) {
-		if (!proxy_zmq_msg_recv(zmq->data_sock, zmq->msg_buff))
-			proc_data_sock_data(zmq);
-		proxy_zmq_msg_close(zmq->msg_buff);
+
+	// while(proxy_zmq_msg_rdy_recv(zmq->data_sock)) {
+	// 	if (!proxy_zmq_msg_recv(zmq->data_sock, zmq->msg_buff))
+	// 		proc_data_sock_data(zmq);
+	// 	proxy_zmq_msg_close(zmq->msg_buff);
+	// }
+	// printf("end_recv_cb\n");
+
+
+	// if (proxy_zmq_msg_rdy_recv(zmq->data_sock))
+		
+	// 	while(!proxy_zmq_msg_recv(zmq->data_sock, zmq->msg_buff)) {
+	// 		proc_data_sock_data(zmq);
+	// 		proxy_zmq_msg_close(zmq->msg_buff);
+	// 	}
+
+	if (proxy_zmq_msg_rdy_recv(zmq->data_sock)) {
+		
+		if (!proxy_zmq_msg_recv(zmq->data_sock, zmq->msg_buff)) {
+			// received and should receive more
+			
+			if (proxy_zmq_msg_is_complete(zmq->msg_buff)) {
+				proc_data_sock_data(zmq);
+				proxy_zmq_msg_close(zmq->msg_buff);
+			}
+			event_add(zmq->recv_ev, NULL);
+			event_active(zmq->recv_ev, 0, 0);
+		}
 	}
+
+
+
 }
 
-static void recv_mon_sock_cb(evutil_socket_t fd, short events, void *arg) {
-	TRACE_FUNC;
-	struct proxy_zmq *zmq = (struct proxy_zmq *)arg;
-	// ZMQ FDs are by design edge-triggered
-	while(proxy_zmq_msg_rdy_recv(zmq->mon_sock)) {
-		if (!proxy_zmq_msg_recv(zmq->mon_sock, zmq->msg_buff))
-			proc_mon_sock_data(zmq);
-		proxy_zmq_msg_close(zmq->msg_buff);
-	}
-}
+// static void recv_mon_sock_cb(evutil_socket_t fd, short events, void *arg) {
+// 	// TRACE_FUNC;
+// 	// struct proxy_zmq *zmq = (struct proxy_zmq *)arg;
+
+// 	// // ZMQ FDs are by design edge-triggered
+// 	// while(proxy_zmq_msg_rdy_recv(zmq->mon_sock)) {
+
+// 	// 	if (!proxy_zmq_msg_recv(zmq->mon_sock, zmq->msg_buff))
+// 	// 		proc_mon_sock_data(zmq);
+
+// 	// 	proxy_zmq_msg_close(zmq->msg_buff);
+// 	// }
+// }
+
 
 int proxy_zmq_init(struct proxy_zmq *zmq, struct event_base *ev_base,
 		const char *sock_addr) {
@@ -77,25 +131,25 @@ int proxy_zmq_init(struct proxy_zmq *zmq, struct event_base *ev_base,
 
 	zmq->ctx = zmq_ctx_new();	
 	assert(zmq->ctx);
-	printf("a\n");
+	// printf("a\n");
 
 	zmq->data_sock = zmq_socket(zmq->ctx, ZMQ_PULL);
 	assert(zmq->data_sock);
 	// maybe set ZMQ_RCVTIMEO
 	// maybe set max msg size
-	printf("b\n");
+	// printf("b\n");
 
-	ret = zmq_socket_monitor(zmq->data_sock, MONITOR, ZMQ_EVENT_ALL);
-	assert(ret == 0);
-	zmq->mon_sock = zmq_socket(zmq->ctx, ZMQ_PAIR);
-	assert(zmq->mon_sock);
+	// ret = zmq_socket_monitor(zmq->data_sock, MONITOR, ZMQ_EVENT_ALL);
+	// assert(ret == 0);
+	// zmq->mon_sock = zmq_socket(zmq->ctx, ZMQ_PAIR);
+	// assert(zmq->mon_sock);
 
-	// maybe set ZMQ_RCVTIMEO
+	// // maybe set ZMQ_RCVTIMEO
 	
 	
-	printf("c\n");
-	ret = zmq_connect(zmq->mon_sock, MONITOR);
-	assert(ret == 0);
+	// printf("c\n");
+	// ret = zmq_connect(zmq->mon_sock, MONITOR);
+	// assert(ret == 0);
 
 
 
@@ -103,31 +157,31 @@ int proxy_zmq_init(struct proxy_zmq *zmq, struct event_base *ev_base,
 	int fd;
 	size_t fd_size = sizeof(fd);
 
-	ret = zmq_getsockopt(zmq->mon_sock, ZMQ_FD, &fd, &fd_size);
-	assert(ret == 0);
+	// ret = zmq_getsockopt(zmq->mon_sock, ZMQ_FD, &fd, &fd_size);
+	// assert(ret == 0);
 
-	printf("ret: %d\n", ret);
-	printf("fd %d\n", fd);
+	// printf("ret: %d\n", ret);
+	// printf("fd %d\n", fd);
 
 
 
-	zmq->recv_mon_sock_ev = event_new(ev_base, fd, EV_READ | EV_PERSIST,
-		recv_mon_sock_cb, zmq);
-	assert(zmq->recv_mon_sock_ev);
-	ret = event_add(zmq->recv_mon_sock_ev, NULL);
-	assert(ret == 0);
+	// zmq->recv_mon_sock_ev = event_new(ev_base, fd, EV_READ | EV_PERSIST,
+	// 	recv_mon_sock_cb, zmq);
+	// assert(zmq->recv_mon_sock_ev);
+	// ret = event_add(zmq->recv_mon_sock_ev, NULL);
+	// assert(ret == 0);
 
 	// this MUST be done before starting to poll on minitor socket FD
 	// there are no event notifications otherwise
 	// https://github.com/flux-framework/flux-core/issues/524
 	// https://github.com/chu11/flux-core/blob/issue524-reproducerexample/src/common/libutil/test/zmqinproc.c
-	uint32_t events = 0;
-	size_t events_len = sizeof(events);
-	ret = zmq_getsockopt(zmq->mon_sock, ZMQ_EVENTS, &events, &events_len);
+	// uint32_t events = 0;
+	// size_t events_len = sizeof(events);
+	// ret = zmq_getsockopt(zmq->mon_sock, ZMQ_EVENTS, &events, &events_len);
 
 
 
-	printf("f\n");
+	// printf("f\n");
     ret = zmq_bind(zmq->data_sock, sock_addr);
 	assert(ret == 0);
 	
@@ -135,14 +189,19 @@ int proxy_zmq_init(struct proxy_zmq *zmq, struct event_base *ev_base,
 	ret = zmq_getsockopt(zmq->data_sock, ZMQ_FD, &fd, &fd_size);
 	assert(ret == 0);
 
-	printf("ret: %d\n", ret);
-	printf("fd %d\n", fd);
+	// printf("ret: %d\n", ret);
+	// printf("fd %d\n", fd);
 
 	zmq->recv_data_sock_ev = event_new(ev_base, fd, EV_READ | EV_PERSIST,
 		recv_data_sock_cb, zmq);
 	assert(zmq->recv_data_sock_ev);
+	
 	ret = event_add(zmq->recv_data_sock_ev, NULL);
 	assert(ret == 0);
+
+	zmq->recv_ev = event_new(ev_base, -1, 0, recv_cb, zmq);
+	// event_add(zmq->recv_ev, NULL);
+
 
 	zmq->msg_buff = malloc(sizeof(*zmq->msg_buff));
 	proxy_zmq_msg_init(zmq->msg_buff, MSG_INIT_SIZE);

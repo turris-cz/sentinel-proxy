@@ -26,6 +26,8 @@ struct proxy_zmq_msg {
 	size_t alloc_parts;
 	size_t recv_parts;
 	zmq_msg_t *msg_parts;
+	// zmq_msg_t *recv_ptr;
+	bool is_complete;
 };
 
 void proxy_zmq_msg_init(struct proxy_zmq_msg *msg, size_t init_size);
@@ -33,7 +35,7 @@ bool proxy_zmq_msg_rdy_recv(void *zmq_sock);
 int proxy_zmq_msg_recv(void *zmq_sock, struct proxy_zmq_msg *msg);
 void proxy_zmq_msg_close(struct proxy_zmq_msg *msg);
 void proxy_zmq_msg_destroy(struct proxy_zmq_msg *msg);
-
+bool proxy_zmq_msg_is_complete(struct proxy_zmq_msg *msg);
 
 #endif /*__SENTINEL_PROXY_ZMQ_MSG_H__*/
 

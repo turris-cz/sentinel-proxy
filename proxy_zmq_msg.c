@@ -29,6 +29,8 @@ void proxy_zmq_msg_init(struct proxy_zmq_msg *msg, size_t init_parts) {
 		msg->alloc_parts = 1;
 	msg->msg_parts = malloc(sizeof(*msg->msg_parts) * msg->alloc_parts);
 	msg->recv_parts = 0;
+	msg->is_complete = false;
+	// msg->recv_ptr = msg->msg_parts;
 }
 
 bool proxy_zmq_msg_rdy_recv(void *zmq_sock) {
@@ -36,28 +38,72 @@ bool proxy_zmq_msg_rdy_recv(void *zmq_sock) {
 	uint32_t events = 0;
 	size_t events_len = sizeof(events);
 	zmq_getsockopt(zmq_sock, ZMQ_EVENTS, &events, &events_len);
-	if (events & ZMQ_POLLIN)
+	if (events & ZMQ_POLLIN) {
+		// printf("true\n");
 		return true;
+	}
+	// printf("false\n");
 	return false;
 }
 
+
+// returns 0 - message was succesfully received and we should try to receive again
+// returns -1 - no messages were available we shouldn't receive again
+// returns -2 - error occured during  
 int proxy_zmq_msg_recv(void *zmq_sock, struct proxy_zmq_msg *msg) {
 	TRACE_FUNC;
-	zmq_msg_t *ptr = msg->msg_parts;
-	while (true) {
-		if (msg->recv_parts == msg->alloc_parts) {
-			msg->alloc_parts *= 2;
-			msg->msg_parts = realloc(msg->msg_parts,
-				sizeof(*msg->msg_parts) * msg->alloc_parts);
-		}
-		zmq_msg_init(ptr);
-		CHECK_ERR_LOG(zmq_msg_recv(ptr, zmq_sock, 0) == -1,
-			"Couldn't receive ZMQ message part");
-		msg->recv_parts++;
-		if (!zmq_msg_more(ptr))
-			break;
-		ptr++;
+	// zmq_msg_t *ptr = msg->msg_parts;
+	// while (true) {
+	// 	if (msg->recv_parts == msg->alloc_parts) {
+	// 		msg->alloc_parts *= 2;
+	// 		msg->msg_parts = realloc(msg->msg_parts,
+	// 			sizeof(*msg->msg_parts) * msg->alloc_parts);
+	// 	}
+	// 	zmq_msg_init(ptr);
+	// 	CHECK_ERR_LOG(zmq_msg_recv(ptr, zmq_sock, ZMQ_DONTWAIT) == -1,
+	// 		"Couldn't receive ZMQ message part");
+	// 	msg->recv_parts++;
+	// 	if (!zmq_msg_more(ptr))
+	// 		break;
+	// 	ptr++;
+	// }
+	// return 0;
+
+
+	if (msg->recv_parts == msg->alloc_parts) {
+		msg->alloc_parts *= 2;
+		msg->msg_parts = realloc(msg->msg_parts,
+			sizeof(*msg->msg_parts) * msg->alloc_parts);
 	}
+
+	zmq_msg_t *ptr = msg->msg_parts + msg->recv_parts;
+
+
+	zmq_msg_init(ptr);
+
+	// CHECK_ERR_LOG(zmq_msg_recv(msg->msg_parts + msg->recv_parts, zmq_sock, ZMQ_DONTWAIT) == -1,
+	// 	"Couldn't receive ZMQ message part");
+	
+	if (zmq_msg_recv(ptr, zmq_sock, ZMQ_DONTWAIT) == -1)
+		if (errno == EAGAIN) {
+			// no message available
+			// we shouldn't receive anymore
+			return -1;
+		} else {
+			// recv error
+			// we should try to recv again
+			ERROR("Couldn't receive ZMQ message part");
+			return -2;
+		}
+
+
+	if (!zmq_msg_more(ptr))
+		msg->is_complete = true;
+
+
+	msg->recv_parts++;
+	// msg->recv_ptr++;
+
 	return 0;
 }
 
@@ -66,10 +112,16 @@ void proxy_zmq_msg_close(struct proxy_zmq_msg *msg) {
 	for(size_t i = 0; i < msg->recv_parts; i++)
 		zmq_msg_close(msg->msg_parts+i);
 	msg->recv_parts = 0;
+	msg->is_complete = false;
+	// msg->recv_ptr = msg->msg_parts;
 } 
 
 void proxy_zmq_msg_destroy(struct proxy_zmq_msg *msg) {
 	TRACE_FUNC;
 	proxy_zmq_msg_close(msg);
 	free(msg->msg_parts);
+}
+
+bool proxy_zmq_msg_is_complete(struct proxy_zmq_msg *msg) {
+	return msg->is_complete;
 }

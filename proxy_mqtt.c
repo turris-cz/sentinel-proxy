@@ -25,7 +25,8 @@
 #define MQTT_CLIENT_ID_MAX_LEN 64
 // https://www.hivemq.com/blog/mqtt-essentials-part-6-mqtt-quality-of-service-levels
 #define MQTT_QOS_LEVEL 0
-#define MQTT_KEEPALIVE_INTERVAL 60  // seconds
+// #define MQTT_KEEPALIVE_INTERVAL 60  // seconds
+#define MQTT_KEEPALIVE_INTERVAL 4  // seconds
 #define MQTT_KEEPALIVE_TIMEOUT (MQTT_KEEPALIVE_INTERVAL / 2) //seconds
 #define MQTT_DISCONNECT_TIMEOUT 5000 // miliseconds
 
@@ -112,6 +113,8 @@ static void mqtt_client_yeld_cb(evutil_socket_t fd, short events, void *arg) {
 	TRACE_FUNC;
 	struct proxy_mqtt *mqtt = (struct proxy_mqtt *)arg;
 	if (MQTTClient_isConnected(mqtt->client))
+		// Must be called regurarly to send pings to server
+		// if there is no other activity 
 		MQTTClient_yield();
 	else
 		mqtt_connect(mqtt);

@@ -43,7 +43,6 @@ sentinel_proxy_LDFLAGS = \
 sentinel_proxy_LDADD = \
 	libsentinel-device-token.la
 
-
 sentinel_device_token_SOURCES = \
 	sentinel_device_token.c
 sentinel_device_token_LDADD = \

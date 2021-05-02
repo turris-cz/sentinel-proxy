@@ -20,6 +20,7 @@
 #define __SENTINEL_PROXY_ZMQ_H__
 
 #include <event2/event.h>
+#include <event2/watch.h>
 #include <zmq.h>
 
 #include "proxy_zmq_msg.h"
@@ -33,6 +34,8 @@ struct proxy_zmq {
 	struct event *recv_mon_sock_ev;
 	struct proxy_zmq_msg *msg_buff;
 	struct proxy_mqtt *mqtt;
+	struct evwatch *prep_watch;
+	struct evwatch *check_watch;
 };
 
 int proxy_zmq_init(struct proxy_zmq *zmq, struct event_base *ev_base,

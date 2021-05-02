@@ -18,6 +18,8 @@
 
 #include <stdlib.h>
 
+#include <event2/event_struct.h>
+
 #include "proxy_zmq.h"
 #include "common.h"
 
@@ -48,25 +50,46 @@ static void proc_mon_sock_data(struct proxy_zmq *zmq) {
 
 }
 
-static void recv_data_sock_cb(evutil_socket_t fd, short events, void *arg) {
+// static void recv_data_sock_cb(evutil_socket_t fd, short events, void *arg) {
+// 	TRACE_FUNC;
+// 	struct proxy_zmq *zmq = (struct proxy_zmq *)arg;
+// 	while(proxy_zmq_msg_rdy_recv(zmq->data_sock)) {
+// 		if (!proxy_zmq_msg_recv(zmq->data_sock, zmq->msg_buff))
+// 			proc_data_sock_data(zmq);
+// 		proxy_zmq_msg_close(zmq->msg_buff);
+// 	}
+// }
+
+// static void recv_mon_sock_cb(evutil_socket_t fd, short events, void *arg) {
+// 	TRACE_FUNC;
+// 	struct proxy_zmq *zmq = (struct proxy_zmq *)arg;
+// 	// ZMQ FDs are by design edge-triggered
+// 	while(proxy_zmq_msg_rdy_recv(zmq->mon_sock)) {
+// 		if (!proxy_zmq_msg_recv(zmq->mon_sock, zmq->msg_buff))
+// 			proc_mon_sock_data(zmq);
+// 		proxy_zmq_msg_close(zmq->msg_buff);
+// 	}
+// }
+
+
+static void prep_watch_cb(struct evwatch *evwatch,
+		const struct evwatch_prepare_cb_info *cb_info, void *arg) {
 	TRACE_FUNC;
 	struct proxy_zmq *zmq = (struct proxy_zmq *)arg;
-	while(proxy_zmq_msg_rdy_recv(zmq->data_sock)) {
-		if (!proxy_zmq_msg_recv(zmq->data_sock, zmq->msg_buff))
-			proc_data_sock_data(zmq);
-		proxy_zmq_msg_close(zmq->msg_buff);
-	}
+
+	if (proxy_zmq_msg_rdy_recv(zmq->data_sock))
+		printf("can receive\n");
+
 }
 
-static void recv_mon_sock_cb(evutil_socket_t fd, short events, void *arg) {
+static void check_watch_cb(struct evwatch *evwatch,
+		const struct evwatch_check_cb_info *cb_info, void *arg) {
 	TRACE_FUNC;
 	struct proxy_zmq *zmq = (struct proxy_zmq *)arg;
-	// ZMQ FDs are by design edge-triggered
-	while(proxy_zmq_msg_rdy_recv(zmq->mon_sock)) {
-		if (!proxy_zmq_msg_recv(zmq->mon_sock, zmq->msg_buff))
-			proc_mon_sock_data(zmq);
-		proxy_zmq_msg_close(zmq->msg_buff);
-	}
+
+	if (proxy_zmq_msg_rdy_recv(zmq->data_sock))
+		printf("can receive\n");
+
 }
 
 int proxy_zmq_init(struct proxy_zmq *zmq, struct event_base *ev_base,
@@ -77,13 +100,13 @@ int proxy_zmq_init(struct proxy_zmq *zmq, struct event_base *ev_base,
 
 	zmq->ctx = zmq_ctx_new();	
 	assert(zmq->ctx);
-	printf("a\n");
+	// printf("a\n");
 
 	zmq->data_sock = zmq_socket(zmq->ctx, ZMQ_PULL);
 	assert(zmq->data_sock);
 	// maybe set ZMQ_RCVTIMEO
 	// maybe set max msg size
-	printf("b\n");
+	// printf("b\n");
 
 	ret = zmq_socket_monitor(zmq->data_sock, MONITOR, ZMQ_EVENT_ALL);
 	assert(ret == 0);
@@ -93,7 +116,7 @@ int proxy_zmq_init(struct proxy_zmq *zmq, struct event_base *ev_base,
 	// maybe set ZMQ_RCVTIMEO
 	
 	
-	printf("c\n");
+	// printf("c\n");
 	ret = zmq_connect(zmq->mon_sock, MONITOR);
 	assert(ret == 0);
 
@@ -106,16 +129,15 @@ int proxy_zmq_init(struct proxy_zmq *zmq, struct event_base *ev_base,
 	ret = zmq_getsockopt(zmq->mon_sock, ZMQ_FD, &fd, &fd_size);
 	assert(ret == 0);
 
-	printf("ret: %d\n", ret);
-	printf("fd %d\n", fd);
+	// printf("ret: %d\n", ret);
+	// printf("fd %d\n", fd);
 
 
-
-	zmq->recv_mon_sock_ev = event_new(ev_base, fd, EV_READ | EV_PERSIST,
-		recv_mon_sock_cb, zmq);
-	assert(zmq->recv_mon_sock_ev);
-	ret = event_add(zmq->recv_mon_sock_ev, NULL);
-	assert(ret == 0);
+	// zmq->recv_mon_sock_ev = event_new(ev_base, fd, EV_READ | EV_PERSIST,
+	// 	recv_mon_sock_cb, zmq);
+	// assert(zmq->recv_mon_sock_ev);
+	// ret = event_add(zmq->recv_mon_sock_ev, NULL);
+	// assert(ret == 0);
 
 	// this MUST be done before starting to poll on minitor socket FD
 	// there are no event notifications otherwise
@@ -127,33 +149,41 @@ int proxy_zmq_init(struct proxy_zmq *zmq, struct event_base *ev_base,
 
 
 
-	printf("f\n");
+	// printf("f\n");
     ret = zmq_bind(zmq->data_sock, sock_addr);
 	assert(ret == 0);
 	
 
-	ret = zmq_getsockopt(zmq->data_sock, ZMQ_FD, &fd, &fd_size);
-	assert(ret == 0);
+	// ret = zmq_getsockopt(zmq->data_sock, ZMQ_FD, &fd, &fd_size);
+	// assert(ret == 0);
 
-	printf("ret: %d\n", ret);
-	printf("fd %d\n", fd);
+	// printf("ret: %d\n", ret);
+	// printf("fd %d\n", fd);
 
-	zmq->recv_data_sock_ev = event_new(ev_base, fd, EV_READ | EV_PERSIST,
-		recv_data_sock_cb, zmq);
-	assert(zmq->recv_data_sock_ev);
-	ret = event_add(zmq->recv_data_sock_ev, NULL);
-	assert(ret == 0);
+	// zmq->recv_data_sock_ev = event_new(ev_base, fd, EV_READ | EV_PERSIST,
+	// 	recv_data_sock_cb, zmq);
+	// assert(zmq->recv_data_sock_ev);
+	// ret = event_add(zmq->recv_data_sock_ev, NULL);
+	// assert(ret == 0);
 
 	zmq->msg_buff = malloc(sizeof(*zmq->msg_buff));
 	proxy_zmq_msg_init(zmq->msg_buff, MSG_INIT_SIZE);
+
+
+	zmq->prep_watch = evwatch_prepare_new(ev_base, prep_watch_cb, zmq);
+	assert(zmq->prep_watch);
+
+	zmq->check_watch = evwatch_check_new(ev_base, check_watch_cb, zmq);
+	assert(zmq->check_watch);
+
 
 	return 0;
 }
 
 void proxy_zmq_destroy(struct proxy_zmq *zmq) {
 	TRACE_FUNC;
-	event_free(zmq->recv_data_sock_ev);
-	event_free(zmq->recv_mon_sock_ev);
+	// event_free(zmq->recv_data_sock_ev);
+	// event_free(zmq->recv_mon_sock_ev);
 
 	zmq_close(zmq->data_sock);
 	zmq_close(zmq->mon_sock);

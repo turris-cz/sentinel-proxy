@@ -1,0 +1,103 @@
+[ ca ]
+default_ca = ca2
+
+[ ca2 ]
+dir             = tests/manual
+private_key     = $dir/keys/ca2.pem
+certificate     = $dir/ca2_certs/ca2.pem
+serial          = $dir/ca2/db/serial
+database        = $dir/ca2/db/index.txt
+new_certs_dir   = $dir/ca2/newcerts
+unique_subject  = no
+
+# certificates options -------------------------------------
+default_days    = 365
+# use public-key default method
+default_md      = default
+
+# policy for certificates (defined below)
+policy          = policy_cn_only
+email_in_dn     = no
+# do not preserve extra DN parameters in request
+preserve        = no
+
+
+# policy definitions ---------------------------------------
+[ policy_cn_only ]
+commonName              = supplied
+
+[ policy_any ]
+countryName             = optional
+stateOrProvinceName     = optional
+localityName            = optional
+organizationName        = optional
+organizationalUnitName  = optional
+commonName              = supplied
+
+
+# server certificate extensions ----------------------------
+[ server_ext ]
+
+basicConstraints    = critical,CA:FALSE
+
+# Typical key usage for server cert
+keyUsage            = digitalSignature
+extendedKeyUsage    = serverAuth
+
+# PKIX recommendations
+subjectKeyIdentifier    = hash
+authorityKeyIdentifier  = keyid,issuer
+
+# Subject Alternative Name - needs to be supplied, if needed!
+#subjectAltName = @alt_name
+
+
+# client certificate extensions ----------------------------
+[ client_ext ]
+
+basicConstraints    = critical,CA:FALSE
+
+# Typical key usage for server cert
+keyUsage            = digitalSignature
+extendedKeyUsage    = clientAuth
+
+# PKIX recommendations
+subjectKeyIdentifier    = hash
+authorityKeyIdentifier  = keyid,issuer
+
+
+
+# Request section ====================================================
+[ req ]
+# DN
+distinguished_name  = req_distinguished_name
+prompt              = no
+# mask for permitted string types
+string_mask         = utf8only
+
+
+# extensions for self-signed certificate
+x509_extensions     = ca_ext
+
+
+# default DN parameters ------------------------------------
+[ req_distinguished_name ]
+# Subject fields
+C       = CZ
+L       = Prague
+O       = CZ.NIC, z.s.p.o.
+OU      = Turris
+# Common name
+CN      = Sentinel Development CA 2
+
+
+# self-signed extensions -----------------------------------
+[ ca_ext ]
+
+# PKIX recommendation.
+subjectKeyIdentifier    = hash
+authorityKeyIdentifier  = keyid:always,issuer
+basicConstraints        = critical,CA:TRUE
+
+# only for issuing certs and CRL
+keyUsage                = cRLSign, keyCertSign

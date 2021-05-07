@@ -2,6 +2,7 @@ TESTS =
 check_PROGRAMS =
 
 include %reldir%/unit/Makefile.am
+include %reldir%/manual/Makefile.am
 
 
 LOG_DRIVER = \

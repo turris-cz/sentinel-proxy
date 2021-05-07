@@ -24,6 +24,7 @@ PKG_CHECK_MODULES([libczmq], [libczmq])
 PKG_CHECK_MODULES([libconfig], [libconfig])
 PKG_CHECK_MODULES([msgpack], [msgpack])
 PKG_CHECK_MODULES([logc], [logc >= 0.2.0 logc_argp])
+PKG_CHECK_MODULES([openssl], [openssl])
 AC_CHECK_LIB(paho-mqtt3cs, MQTTClient_create, , AC_MSG_ERROR([Cannot find libpaho-mqtt]))
 AC_LINK_IFELSE(
   [AC_LANG_PROGRAM([#include <argp.h>],[argp_parse(0,1,NULL,0,0,0);])],,

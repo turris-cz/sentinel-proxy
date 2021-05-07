@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Gitlab CI
 - pkg-config and version scripts for device token library
 - more fields in configuration file - it can hold the whole config now
+- manual overall tests
 
 ### Changed
 - split server CLI option to server and port options

@@ -4,11 +4,12 @@ Sentinel-proxy sends messages received over ZMQ to Sentinel server (over MQTT).
 
 ## Dependencies
 
- - [czmq](https://github.com/zeromq/czmq)
- - [libz](https://github.com/madler/zlib)
  - [libcrypto](https://github.com/openssl/openssl)
- - [libpaho-mqtt](https://github.com/eclipse/paho.mqtt.c)
+ - [libz](https://github.com/madler/zlib)
+ - [czmq](https://github.com/zeromq/czmq)
  - [libconfig](https://github.com/hyperrealm/libconfig)
+ - [libpaho-mqtt](https://github.com/eclipse/paho.mqtt.c)
+ - On non-glibc [argp-standalone](http://www.lysator.liu.se/~nisse/misc)
 
 ## Build dependencies
 

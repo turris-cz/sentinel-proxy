@@ -1,5 +1,7 @@
 bin_PROGRAMS += sentinel-device-token
 lib_LTLIBRARIES += libsentinel-device-token.la
+pkgconfig_DATA += %reldir%/libsentinel-device-token.pc
+EXTRA_DIST += %reldir%/libsentinel-device-token.version
 
 
 sentinel_device_token_SOURCES = \
@@ -24,6 +26,7 @@ libsentinel_device_token_la_LDFLAGS = \
 	${libcrypto_LIBS} \
 	${zlib_LIBS} \
 	${CODE_COVERAGE_LIBS} \
+	-Wl,--version-script='$(srcdir)/%reldir%/libsentinel-device-token.version' \
 	-version-info 1:0:0
 
 

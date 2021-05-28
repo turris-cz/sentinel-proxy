@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - lcov - code coverage
 - valgrind
 - Gitlab CI
+- pkg-config and version scripts for device token library
 
 ## [1.4] - 2021-05-31
 ### Added

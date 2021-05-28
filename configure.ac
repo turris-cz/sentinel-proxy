@@ -87,6 +87,6 @@ dnl Coverage
 AX_CODE_COVERAGE
 
 
-AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([Makefile device-token/libsentinel-device-token.pc])
 
 AC_OUTPUT

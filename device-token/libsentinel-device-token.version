@@ -1,0 +1,8 @@
+V0.0 {
+	global:
+		device_token_state_msg;
+		device_token_generate;
+		device_token_verify;
+
+	local: *;
+};

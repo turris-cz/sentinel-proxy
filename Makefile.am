@@ -1,5 +1,6 @@
 bin_PROGRAMS =
 lib_LTLIBRARIES =
+pkgconfig_DATA =
 EXTRA_DIST =
 linted_files =
 

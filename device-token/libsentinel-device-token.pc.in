@@ -1,0 +1,10 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: libsentinel-device-token
+Description: Turris Sentinel Device Token library
+Version: @PACKAGE_VERSION@
+Libs: -L${libdir} -lsentinel-device-token
+Cflags: -I${includedir}

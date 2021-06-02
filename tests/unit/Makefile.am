@@ -5,7 +5,8 @@ check_PROGRAMS += %reldir%/unittests
 %canon_reldir%_unittests_SOURCES = \
 	${proxy_sources} \
 	%reldir%/unittests.c \
-	%reldir%/con_peer_list.c
+	%reldir%/con_peer.c \
+	%reldir%/con_peer_list.c \
 
 %canon_reldir%_unittests_CFLAGS = \
 	$(sentinel_proxy_CFLAGS) \

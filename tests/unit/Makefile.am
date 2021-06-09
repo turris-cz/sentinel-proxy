@@ -7,6 +7,7 @@ check_PROGRAMS += %reldir%/unittests
 	%reldir%/unittests.c \
 	%reldir%/con_peer.c \
 	%reldir%/con_peer_list.c \
+	%reldir%/proxy_conf.c
 
 %canon_reldir%_unittests_CFLAGS = \
 	$(sentinel_proxy_CFLAGS) \
@@ -16,3 +17,8 @@ check_PROGRAMS += %reldir%/unittests
 	$(check_LIBS)
 %canon_reldir%_unittests_LDADD = \
 	$(sentinel_proxy_LDADD)
+
+AM_TESTS_ENVIRONMENT = export DATA_DIR="$(top_srcdir)/%reldir%/data/";
+
+dist-hook:
+	cp -rf "$(top_srcdir)/%reldir%/data/" "$(distdir)/%reldir%/data/"

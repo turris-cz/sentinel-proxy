@@ -20,8 +20,7 @@
 #define __SENTINEL_PROXY_PROXY_CONF_H__
 
 #include <stdbool.h>
-
-#include "device_token.h"
+#include <device_token.h>
 
 struct proxy_conf {
 	const char *upstream_srv;

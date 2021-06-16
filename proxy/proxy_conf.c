@@ -25,7 +25,6 @@
 #include <logc_argp.h>
 
 #include "proxy_conf.h"
-#include "config.h"
 #include "log.h"
 
 const char *argp_program_version = PACKAGE_STRING;

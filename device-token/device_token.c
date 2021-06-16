@@ -1,13 +1,11 @@
-#include "device_token.h"
-
 #include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-
 #include <openssl/rand.h>
 #include <zlib.h>
+#include <device_token.h>
 
 #define CRC_BYTES 4
 // Every byte of device token random data equals two hexadecimal characters

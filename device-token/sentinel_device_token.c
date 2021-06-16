@@ -20,9 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <argp.h>
-
-#include "config.h"
-#include "device_token.h"
+#include <device_token.h>
 
 enum actions {
     NO_ACTION,

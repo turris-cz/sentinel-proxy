@@ -145,15 +145,25 @@ void compose_last_will(msgpack_sbuffer *sbuff, msgpack_packer *pk) {
 void client_setup(const struct proxy_conf *conf, struct mqtt *mqtt) {
 	TRACE_FUNC;
 	MQTTClient_SSLOptions ssl_opts = MQTTClient_SSLOptions_initializer;
-	// Enables verification of the server certificate.
-	ssl_opts.enableServerCertAuth = 1;
-	// Enables post-connect checks, including that a server certificate
-	// matches the given host name.
-	ssl_opts.verify = 1;
-	ssl_opts.trustStore = conf->ca_file;
-	ssl_opts.keyStore = conf->client_cert_file;
-	ssl_opts.privateKey = conf->client_key_file;
-	
+	// For client verification at server side
+	// File in PEM format containing public certificate chain of the client.
+	ssl_opts.keyStore = conf->mqtt_client_cert_file;
+	// File in PEM format containing client's private key.
+	ssl_opts.privateKey = conf->mqtt_client_key_file;
+	if (conf->disable_serv_check) {
+		// Disables verification of the server certificate.
+		ssl_opts.enableServerCertAuth = false;
+		// Disables post-connect checks, including that a server certificate
+		// matches the given host name.
+		ssl_opts.verify = false;
+	} else {
+		ssl_opts.enableServerCertAuth = true;
+		ssl_opts.verify = true;
+		// The file in PEM format containing the public digital certificates
+		// trusted by the client.
+		ssl_opts.trustStore = conf->ca_cert_file;
+	}
+
 	MQTTClient_willOptions lw_opts = MQTTClient_willOptions_initializer;
 	lw_opts.topicName = mqtt->status_topic;
 	// must be NULL to allow binary payload
@@ -213,6 +223,14 @@ void build_status_topic(char **topic_buf, char *client_id, char *device_token) {
 	fclose(tmp);
 }
 
+void build_server_uri(char **uri_buf, char *server, int port) {
+	TRACE_FUNC;
+	size_t tmp_len = 0;
+	FILE *tmp = open_memstream(uri_buf, &tmp_len);
+	fprintf(tmp, "ssl://%s:%d", server, port);
+	fclose(tmp);
+}
+
 void get_client_id(const char *filename, char **id) {
 	TRACE_FUNC;
 	FILE *fp = fopen(filename, "r");
@@ -233,11 +251,12 @@ void init_mqtt(struct mqtt *mqtt, zloop_t *zloop, const struct proxy_conf *conf)
 	assert(mqtt);
 	assert(zloop);
 	assert(conf);
-	get_client_id(conf->client_cert_file, &mqtt->client_id);
+	get_client_id(conf->mqtt_client_cert_file, &mqtt->client_id);
 	build_data_topic(&mqtt->data_topic, &mqtt->data_topic_prefix_end,
 		mqtt->client_id, conf->device_token);
 	build_status_topic(&mqtt->status_topic, mqtt->client_id, conf->device_token);
-	
+	build_server_uri(&mqtt->server_uri, conf->mqtt_broker, conf->mqtt_port);
+
 	mqtt->packer = msgpack_packer_new(NULL, NULL);
 	assert(mqtt->packer);
 	mqtt->sbuff = msgpack_sbuffer_new();
@@ -250,7 +269,7 @@ void init_mqtt(struct mqtt *mqtt, zloop_t *zloop, const struct proxy_conf *conf)
 
 	client_setup(conf, mqtt);
 	assert(MQTTClient_create(&mqtt->client,
-		conf->upstream_srv, mqtt->client_id, MQTTCLIENT_PERSISTENCE_NONE, NULL)
+		mqtt->server_uri, mqtt->client_id, MQTTCLIENT_PERSISTENCE_NONE, NULL)
 		== MQTTCLIENT_SUCCESS);
 	mqtt->zloop = zloop;
 	mqtt->sentinel_heartbeat_timer_id = -1;
@@ -274,6 +293,7 @@ void destroy_mqtt(struct mqtt *mqtt) {
 		free(mqtt->status_topic);
 		free(mqtt->data_topic);
 		free(mqtt->client_id);
+		free(mqtt->server_uri);
 	}
 }
 

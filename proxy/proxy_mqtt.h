@@ -38,6 +38,7 @@ struct mqtt {
 	char *status_topic;
 	char *data_topic;
 	char *data_topic_prefix_end;
+	char *server_uri;
 	MQTTClient client;
 	MQTTClient_connectOptions *conn_opts;
 	MQTTClient_SSLOptions *ssl_opts;

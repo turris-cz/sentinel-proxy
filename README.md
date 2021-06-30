@@ -9,6 +9,7 @@ Sentinel-proxy sends messages received over ZMQ to Sentinel server (over MQTT).
  - [libcrypto](https://github.com/openssl/openssl)
  - [libpaho-mqtt](https://github.com/eclipse/paho.mqtt.c)
  - [libconfig](https://github.com/hyperrealm/libconfig)
+ - [msgpack](https://github.com/msgpack/msgpack-c)
 
 ## Build dependencies
 

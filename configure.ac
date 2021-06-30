@@ -34,36 +34,44 @@ AS_IF([test "$argp_standalone_required" = "yes"],
 
 
 dnl Options from environment
-AC_ARG_VAR([defconfig], [default path to the configuration file])
-AS_IF([test -z "${defconfig}"], [defconfig="/tmp/etc/sentinel-proxy.cfg"])
-AC_DEFINE_UNQUOTED([DEFAULT_CONFIG_FILE], ["${defconfig}"],
+AC_ARG_VAR([defconfigfile], [default path to the configuration file])
+AS_IF([test -z "${defconfigfile}"],
+  [defconfigfile="/tmp/etc/sentinel-proxy.cfg"])
+AC_DEFINE_UNQUOTED([DEFAULT_CONFIG_FILE], ["${defconfigfile}"],
   [Default path to the configuration file])
 
-AC_ARG_VAR([defserver], [default Sentinel server])
-AS_IF([test -z "${defserver}"], [defserver="ssl://sentinel.turris.cz:1883"])
+AC_ARG_VAR([defserver], [default Sentinel server address])
+AS_IF([test -z "${defserver}"], [defserver="sentinel.turris.cz"])
 AC_DEFINE_UNQUOTED([DEFAULT_SERVER], ["${defserver}"],
-	[Default Sentinel server])
+	[Default Sentinel server adress])
 
-AC_ARG_VAR([defsocket], [default path to local socket])
-AS_IF([test -z "${defsocket}"], [defsocket="ipc:///tmp/sentinel_pull.sock"])
-AC_DEFINE_UNQUOTED([DEFAULT_LOCAL_SOCKET], ["${defsocket}"],
+AC_ARG_VAR([defport], [default Sentinel server port])
+AS_IF([test -z "${defport}"], [defport=1883])
+AC_DEFINE_UNQUOTED([DEFAULT_PORT], [${defport}],
+	[Default Sentinel server port])
+
+AC_ARG_VAR([defzmqsockpath], [default path to ZMQ socket])
+AS_IF([test -z "${defzmqsockpath}"],
+  [defzmqsockpath="ipc:///tmp/sentinel_pull.sock"])
+AC_DEFINE_UNQUOTED([DEFAULT_ZMQ_SOCK_PATH], ["${defzmqsockpath}"],
   [Default path to local socket])
 
-AC_ARG_VAR([defca], [default path to CA certificate file])
-AS_IF([test -z "${defca}"], [defca="/etc/sentinel/ca.pem"])
-AC_DEFINE_UNQUOTED([DEFAULT_CA_FILE], ["${defca}"],
+AC_ARG_VAR([defcacertfile], [default path to CA certificate file])
+AS_IF([test -z "${defcacertfile}"], [defcacertfile="/etc/sentinel/ca.pem"])
+AC_DEFINE_UNQUOTED([DEFAULT_CA_CERT_FILE], ["${defcacertfile}"],
   [Default path to CA certificate file])
 
-AC_ARG_VAR([defcert], [default path to client certificate file])
-AS_IF([test -z "${defcert}"], [defcert="/etc/sentinel/mqtt_cert.pem"])
-AC_DEFINE_UNQUOTED([DEFAULT_CERT_FILE], ["${defcert}"],
+AC_ARG_VAR([defmqttclientcertfile], [default path to MQTT client certificate file])
+AS_IF([test -z "${defmqttclientcertfile}"],
+  [defmqttclientcertfile="/etc/sentinel/mqtt_cert.pem"])
+AC_DEFINE_UNQUOTED([DEFAULT_MQTT_CLIENT_CERT_FILE], ["${defmqttclientcertfile}"],
   [Default path to client certificate file])
 
-AC_ARG_VAR([defkey], [default path to client key file])
-AS_IF([test -z "${defkey}"], [defkey="/etc/sentinel/mqtt_key.pem"])
-AC_DEFINE_UNQUOTED([DEFAULT_KEY_FILE], ["${defkey}"],
+AC_ARG_VAR([defmqttclientkeyfile], [default path to client key file])
+AS_IF([test -z "${defmqttclientkeyfile}"],
+  [defmqttclientkeyfile="/etc/sentinel/mqtt_key.pem"])
+AC_DEFINE_UNQUOTED([DEFAULT_MQTT_CLIENT_KEY_FILE], ["${defmqttclientkeyfile}"],
   [Default path to client key file])
-
 
 
 dnl Tests
@@ -85,7 +93,6 @@ AS_IF([test "x$enable_linters" = "xyes"], [
 
 dnl Coverage
 AX_CODE_COVERAGE
-
 
 AC_CONFIG_FILES([Makefile device-token/libsentinel-device-token.pc])
 

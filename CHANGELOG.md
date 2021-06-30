@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Gitlab CI
 - pkg-config and version scripts for device token library
 
+### Changed
+- split server CLI option to server and port options
+
 ## [1.4] - 2021-05-31
 ### Added
 - Sending status messages to server

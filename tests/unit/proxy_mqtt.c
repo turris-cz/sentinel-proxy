@@ -17,6 +17,7 @@
  */
 
 #include <check.h>
+#include <stdio.h>
 
 #include "../../proxy/proxy_mqtt.h"
 #include "../../proxy/common.h"
@@ -128,12 +129,23 @@ START_TEST(build_server_uri_test) {
 	free(buff);
 }
 
+static char *get_test_cert_file_path() {
+	char *dir = getenv("DATA_DIR");
+	if (!dir)
+		dir =  "./tests/unit";
+	char *path;
+	asprintf(&path, "%s/%s", dir, "test_cert.pem");
+	return path;
+}
+
 START_TEST(get_client_id_test) {
-	const char *cert_file = "./tests/unit/test_cert.pem";
+	// const char *cert_file = "./tests/unit/test_cert.pem";
+	char *cert_file = get_test_cert_file_path();
 	char *id = NULL;
 	get_client_id(cert_file, &id);
 	ck_assert_str_eq(id, "proxy");
 	free(id);
+	free(cert_file);
 }
 
 void unittests_add_suite(Suite*);

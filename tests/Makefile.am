@@ -34,4 +34,4 @@ include $(srcdir)/aminclude_static.am
 clean-local: code-coverage-clean
 distclean-local: code-coverage-dist-clean
 
-AM_TESTS_ENVIRONMENT = export DATA_DIR="$(abs_srcdir)/tests/unit";
+AM_TESTS_ENVIRONMENT = export DATA_DIR="$(abs_top_srcdir)/tests/unit";

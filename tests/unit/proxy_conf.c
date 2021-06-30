@@ -18,6 +18,7 @@
 
 #include <check.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "../../proxy/proxy_conf.h"
 
@@ -104,8 +105,19 @@ START_TEST(init_test) {
 	ck_assert_int_eq(proxy_conf.dt_len, DEV_TOKEN_MEM_LEN);
 }
 
+static char *get_test_config_file_path() {
+	char *dir = getenv("DATA_DIR");
+	if (!dir)
+		dir =  "./tests/unit";
+	char *path;
+	asprintf(&path, "%s/%s", dir, "test_config.cfg");
+	return path;
+}
+
 START_TEST(load_config_file_test) {
-	load_config_file("./tests/unit/test_config.cfg", &proxy_conf);
+	char *config_file = get_test_config_file_path();
+	// load_config_file("./tests/unit/test_config.cfg", &proxy_conf);
+	load_config_file(config_file, &proxy_conf);
 	// this is NOT changed by config file
 	ck_assert_int_eq(proxy_conf.disable_serv_check, false);
 	ck_assert_str_eq(proxy_conf.config_file, DEFAULT_CONFIG_FILE);
@@ -119,6 +131,7 @@ START_TEST(load_config_file_test) {
 	ck_assert_str_eq(proxy_conf.zmq_sock_path, "eeeeeeeeeeeeeeeeeeeee");
 	ck_assert_str_eq(proxy_conf.device_token,
 		"fffffffffffffffffffffffffffffffffffffffffff");
+	free(config_file);
 }
 
 START_TEST(load_cli_opts_test) {

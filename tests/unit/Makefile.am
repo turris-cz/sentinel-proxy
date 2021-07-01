@@ -19,3 +19,9 @@ check_PROGRAMS += %reldir%/unittests
 	$(check_LIBS)
 %canon_reldir%_unittests_LDADD = \
 	$(sentinel_proxy_LDADD)
+
+AM_TESTS_ENVIRONMENT = export DATA_DIR="$(abs_top_srcdir)/tests/unit";
+
+dist-hook:
+	cp -rf "%reldir%/test_cert.pem" "$(distdir)/%reldir%/"
+	cp -rf "%reldir%/test_config.cfg" "$(distdir)/%reldir%/"

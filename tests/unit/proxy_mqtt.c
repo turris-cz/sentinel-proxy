@@ -132,7 +132,7 @@ START_TEST(build_server_uri_test) {
 static char *get_test_cert_file_path() {
 	char *dir = getenv("DATA_DIR");
 	if (!dir)
-		dir =  "./tests/unit";
+		dir =  "./tests/unit/data/";
 	char *path;
 	asprintf(&path, "%s/%s", dir, "test_cert.pem");
 	return path;

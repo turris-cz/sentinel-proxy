@@ -108,7 +108,7 @@ START_TEST(init_test) {
 static char *get_test_config_file_path() {
 	char *dir = getenv("DATA_DIR");
 	if (!dir)
-		dir =  "./tests/unit";
+		dir =  "./tests/unit/data/";
 	char *path;
 	asprintf(&path, "%s/%s", dir, "test_config.cfg");
 	return path;

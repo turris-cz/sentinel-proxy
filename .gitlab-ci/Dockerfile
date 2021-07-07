@@ -1,5 +1,5 @@
 # Wee need unstable for now because of check version
-FROM debian:unstable
+FROM debian:bullseye
 
 ENV HOME /root
 

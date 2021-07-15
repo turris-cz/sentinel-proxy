@@ -22,6 +22,7 @@
 
 #include "proxy_mqtt.h"
 #include "con_peer_list.h"
+#include "last_msg_list.h"
 
 struct zmq {
 	zsock_t *data_sock;
@@ -29,6 +30,7 @@ struct zmq {
 	zloop_t *zloop;
 	struct mqtt *mqtt;
 	struct con_peer_list *con_peer_list;
+	struct last_msg_list *last_msg_list;
 };
 
 // NOTE: This is private API exposed just for the testing.

@@ -12,7 +12,9 @@ proxy_sources = \
 	%reldir%/proxy_mqtt.h \
 	%reldir%/proxy_mqtt.c \
 	%reldir%/proxy_zmq.h \
-	%reldir%/proxy_zmq.c
+	%reldir%/proxy_zmq.c \
+	%reldir%/last_msg_list.c \
+	%reldir%/last_msg_list.h
 
 sentinel_proxy_SOURCES = \
 	%reldir%/sentinel_proxy.c \

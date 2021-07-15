@@ -16,6 +16,7 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <time.h>
 #include "proxy_zmq.h"
 #include "common.h"
 #include "log.h"
@@ -68,6 +69,8 @@ int recv_data_cb(zloop_t *loop, zsock_t *reader, void *arg) {
 		zframe_t *payload_frame = zmsg_last(msg);
 		mqtt_send_data(zmq->mqtt, (char *)topic, topic_len,
 			(char *)zframe_data(payload_frame), zframe_size(payload_frame));
+		update_last_msg(zmq->last_msg_list, (char *)topic, topic_len,
+			(unsigned long long)time(NULL));
 	}
 ret:
 	zmsg_destroy(&msg);
@@ -108,6 +111,8 @@ void init_zmq(struct zmq *zmq, struct mqtt *mqtt ,zloop_t *zloop,
 	zmq->zloop = zloop;
 	zmq->con_peer_list = malloc(sizeof(*zmq->con_peer_list));
 	init_con_peer_list(zmq->con_peer_list);
+	zmq->last_msg_list = malloc(sizeof(*zmq->last_msg_list));
+	init_last_msg_list(zmq->last_msg_list);
 }
 
 void destroy_zmq(struct zmq *zmq) {
@@ -118,5 +123,6 @@ void destroy_zmq(struct zmq *zmq) {
 		zactor_destroy(&zmq->monitor);
 		zsock_destroy(&zmq->data_sock);
 		destroy_con_peer_list(zmq->con_peer_list);
+		destroy_last_msg_list(zmq->last_msg_list);
 	}
 }

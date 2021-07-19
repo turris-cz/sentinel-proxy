@@ -9,7 +9,9 @@ check_PROGRAMS += %reldir%/unittests
 	%reldir%/con_peer_list.c \
 	%reldir%/proxy_conf.c \
 	%reldir%/proxy_zmq.c \
-	%reldir%/proxy_mqtt.c
+	%reldir%/proxy_mqtt.c \
+	%reldir%/last_msg.c \
+	%reldir%/last_msg_list.c
 
 %canon_reldir%_unittests_CFLAGS = \
 	$(sentinel_proxy_CFLAGS) \

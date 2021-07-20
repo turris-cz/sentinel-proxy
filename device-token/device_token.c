@@ -96,9 +96,9 @@ char *device_token_generate() {
 }
 
 static enum dt_state check_base(const char *device_token) {
-    if (device_token[0] == '\0')
+    if (!device_token)
         return DT_UNDEF;
-    if (strlen(device_token) != 64)
+    if (strlen(device_token) != DEVICE_TOKEN_LEN)
         return DT_LENGTH;
     return DT_OK;
 }

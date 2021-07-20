@@ -19,8 +19,13 @@ const char const *state_messages[] = {
     "device_token crc check failed",
 };
 
-const char *device_token_state_msg(enum dt_state state){
-    return state_messages[state];
+const char *device_token_state_msg(enum dt_state state) {
+    switch(state) {
+        case DT_OK: case DT_UNDEF: case DT_LENGTH: case DT_DECODE: case DT_CRC:
+            return state_messages[state];
+        default:
+            return NULL;
+    };
 }
 
 static uint32_t get_crc(uint8_t *data, unsigned len) {

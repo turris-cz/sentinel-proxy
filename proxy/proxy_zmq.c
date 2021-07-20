@@ -66,8 +66,8 @@ int recv_data_cb(zloop_t *loop, zsock_t *reader, void *arg) {
 	if (msg_size == 2) {
 		// Normal message with data
 		zframe_t *payload_frame = zmsg_last(msg);
-		mqtt_send_data(zmq->mqtt, (uint8_t *)topic, topic_len,
-			(uint8_t *)zframe_data(payload_frame), zframe_size(payload_frame));
+		mqtt_send_data(zmq->mqtt, (char *)topic, topic_len,
+			(char *)zframe_data(payload_frame), zframe_size(payload_frame));
 	}
 ret:
 	zmsg_destroy(&msg);
@@ -87,7 +87,7 @@ int monitor_cb(zloop_t *loop, zsock_t *reader, void *arg) {
 	return 0;
 }
 
-int init_zmq(struct zmq *zmq, struct mqtt *mqtt ,zloop_t *zloop,
+void init_zmq(struct zmq *zmq, struct mqtt *mqtt ,zloop_t *zloop,
 		const char *sock_path) {
 	TRACE_FUNC;
 	assert(zmq);
@@ -108,7 +108,6 @@ int init_zmq(struct zmq *zmq, struct mqtt *mqtt ,zloop_t *zloop,
 	zmq->zloop = zloop;
 	zmq->con_peer_list = malloc(sizeof(*zmq->con_peer_list));
 	init_con_peer_list(zmq->con_peer_list);
-	return 0;
 }
 
 void destroy_zmq(struct zmq *zmq) {

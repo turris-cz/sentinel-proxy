@@ -46,7 +46,7 @@ int check_msg(size_t frames, unsigned char *topic, size_t topic_len);
 // DOES assert check for zmq, mqtt, zloop and sock_path.
 // For the subsequent data PULLing from ZMQ endpoint and forwarding them to given
 // MQTT client, passed event loop MUST be started after calling this. 
-int init_zmq(struct zmq *zmq, struct mqtt *mqtt, zloop_t *zloop,
+void init_zmq(struct zmq *zmq, struct mqtt *mqtt, zloop_t *zloop,
 	const char *sock_path);
 
 // If zmq is not NULL, removes all callbacks from event loop, destroys ZMQ

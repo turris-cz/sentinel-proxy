@@ -297,11 +297,11 @@ void destroy_mqtt(struct mqtt *mqtt) {
 	}
 }
 
-void mqtt_send_data(struct mqtt *mqtt, uint8_t *topic,
-		size_t topic_len, uint8_t *data, size_t data_len) {
+void mqtt_send_data(struct mqtt *mqtt, char *topic, size_t topic_len,
+		char *data, size_t data_len) {
 	TRACE_FUNC;
 	// complete MQTT data topic
-	update_data_topic(mqtt->data_topic_prefix_end, (char*)topic, topic_len);
+	update_data_topic(mqtt->data_topic_prefix_end, topic, topic_len);
 	if (MQTTClient_publish(mqtt->client, mqtt->data_topic, (int)data_len, data,
 			MQTT_QOS_LEVEL, 0, NULL) != MQTTCLIENT_SUCCESS)
 		error("Cannot send data");

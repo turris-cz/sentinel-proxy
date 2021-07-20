@@ -124,8 +124,8 @@ void destroy_mqtt(struct mqtt *mqtt);
 // Sends given data to MQTT broker. topic is message topic received from ZMQ,
 // which is internally transformed to MQTT data topic. Data are sent to MQTT
 // broker as they are without any transformation.
-void mqtt_send_data(struct mqtt *mqtt, uint8_t *topic, size_t topic_len,
-	uint8_t *data, size_t data_len);
+void mqtt_send_data(struct mqtt *mqtt, char *topic, size_t topic_len,
+	char *data, size_t data_len);
 
 #endif /*__SENTINEL_PROXY_MQTT_H__*/
 

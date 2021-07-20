@@ -11,6 +11,7 @@ It relays messages received over ZMQ to Sentinel server over MQTT.
  - [libpaho-mqtt](https://github.com/eclipse/paho.mqtt.c)
  - [msgpack](https://github.com/msgpack/msgpack-c)
  - [logc](https://gitlab.nic.cz/turris/logc)
+ - [logc_czmq](https://gitlab.nic.cz/turris/logc-libs)
  - On non-glibc [argp-standalone](http://www.lysator.liu.se/~nisse/misc)
 
 For build:

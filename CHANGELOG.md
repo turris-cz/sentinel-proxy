@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - log czmq with logc_czmq
+- device token unit tests
 
 ## [2.0.0] - 2022-12-30
 ### Added

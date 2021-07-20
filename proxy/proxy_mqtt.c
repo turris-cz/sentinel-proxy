@@ -152,13 +152,13 @@ void client_setup(const struct proxy_conf *conf, struct mqtt *mqtt) {
 	ssl_opts.privateKey = conf->mqtt_client_key_file;
 	if (conf->disable_serv_check) {
 		// Disables verification of the server certificate.
-		ssl_opts.enableServerCertAuth = false;
+		ssl_opts.enableServerCertAuth = 0;
 		// Disables post-connect checks, including that a server certificate
 		// matches the given host name.
-		ssl_opts.verify = false;
+		ssl_opts.verify = 0;
 	} else {
-		ssl_opts.enableServerCertAuth = true;
-		ssl_opts.verify = true;
+		ssl_opts.enableServerCertAuth = 1;
+		ssl_opts.verify = 1;
 		// The file in PEM format containing the public digital certificates
 		// trusted by the client.
 		ssl_opts.trustStore = conf->ca_cert_file;

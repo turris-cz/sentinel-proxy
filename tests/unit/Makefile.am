@@ -11,7 +11,8 @@ check_PROGRAMS += %reldir%/unittests
 	%reldir%/proxy_zmq.c \
 	%reldir%/proxy_mqtt.c \
 	%reldir%/last_msg.c \
-	%reldir%/last_msg_list.c
+	%reldir%/last_msg_list.c \
+	%reldir%/device_token.c
 
 %canon_reldir%_unittests_CFLAGS = \
 	$(sentinel_proxy_CFLAGS) \

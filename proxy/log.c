@@ -17,5 +17,18 @@
  */
 
 #include "log.h"
+#include <czmq_logc.h>
 
 APP_LOG(sentinel_proxy);
+
+__attribute__((constructor))
+static void log_constructor() {
+	log_bind(log_sentinel_proxy, log_czmq);
+	logc_czmq_init();
+}
+
+__attribute__((destructor))
+static void log_destructor() {
+	logc_czmq_cleanup();
+	log_unbind(log_czmq);
+}

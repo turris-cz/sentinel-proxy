@@ -27,14 +27,21 @@ RUN \
 
 # Compile logc
 RUN \
-  git clone --branch "v0.2.1" "https://gitlab.nic.cz/turris/logc.git" && \
+  git clone --branch "v0.3.0" "https://gitlab.nic.cz/turris/logc.git" && \
   cd logc && \
   ./bootstrap && ./configure --prefix=/usr && \
   make install && \
   cd .. && \
   rm -rf logc
 
-
+# Compile logc libs
+RUN \
+  git clone --branch "v0.1.0" "https://gitlab.nic.cz/turris/logc-libs.git" && \
+  cd logc-libs && \
+  ./bootstrap && ./configure --disable-tests --disable-linters --prefix=/usr && \
+  make install && \
+  cd .. && \
+  rm -rf logc-libs
 
 CMD [ "bash" ]
 

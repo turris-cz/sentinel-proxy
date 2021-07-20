@@ -26,6 +26,7 @@ sentinel_proxy_CFLAGS = \
 	${libconfig_CFLAGS} \
 	${msgpack_CFLAGS} \
 	${logc_CFLAGS} \
+	${logc_czmq_CFLAGS} \
 	${CODE_COVERAGE_CFLAGS}
 sentinel_proxy_LDFLAGS = \
 	${libconfig_LIBS} \
@@ -33,6 +34,7 @@ sentinel_proxy_LDFLAGS = \
 	${libczmq_LIBS} \
 	${msgpack_LIBS} \
 	${logc_LIBS} \
+	${logc_czmq_LIBS} \
 	${CODE_COVERAGE_LIBS}
 sentinel_proxy_LDADD = \
 	libsentinel-device-token.la

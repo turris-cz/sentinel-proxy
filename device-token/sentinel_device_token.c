@@ -1,6 +1,6 @@
 /*
- *  Turris:Sentinel Proxy - Main MQTT gateway to Sentinel infrastructure
- *  Copyright (C) 2020 CZ.NIC z.s.p.o. (https://www.nic.cz/)
+ *  Turris:Sentinel Device Token - Sentinel Device Token CLI utility tool
+ *  Copyright (C) 2020 - 2021 CZ.NIC z.s.p.o. (https://www.nic.cz/)
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,93 +16,81 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
+#include <stdbool.h>
 #include <stdlib.h>
-#include <string.h>
 #include <argp.h>
 #include <device_token.h>
 
 enum actions {
-    NO_ACTION,
-    CREATE,
-    VALIDATE
+	NO_ACTION,
+	CREATE,
+	VALIDATE
 };
 
 struct conf {
-    enum actions action;
-    char device_token[DEVICE_TOKEN_LEN + 1];
-    bool quite;
+	enum actions action;
+	char *device_token;
+	bool quiet;
 };
 
-static struct conf conf = {
-    .action = NO_ACTION,
-    .device_token[0] = '\0',
-    .quite = false
+static const char const *doc = "Sentinel Device Token - Device Token CLI utility"
+	" tool\n\nDevice token is 64 hex character long string used to uniquely and "
+	"anonymously identify a user of Turris Sentinel for purposes of following provided"
+	" services.\n\nThis tool serves as generator and validator of a device token.";
+static const struct argp_option options[] = {
+	{"create", 'c', NULL, 0,
+		"Create new device token and print it to stdout"},
+	{"validate", 'v', "device_token", 0,
+		"Validate passed device token. Return 0 on success and apropriate error"
+		" code otherwise. Also print the validation status message to stdout"},
+	{"quiet", 'q', NULL, 0,
+		"Enable quiet mode - do NOT print validation status message"},
+	{NULL}
 };
 
 static error_t parse_opt(int key, char *arg, struct argp_state *state) {
-    switch (key) {
-        case 'c':
-            conf.action = CREATE;
-            break;
-        case 'v':
-            if (conf.action) {
-                fprintf(stderr, "Specify either token validation or creation\n");
-                argp_usage(state);
-            }
-            conf.action = VALIDATE;
-            strncpy(conf.device_token, arg, DEVICE_TOKEN_LEN + 1);
-            break;
-        case 'q':
-            conf.quite = true;
-            break;
-        case ARGP_KEY_ARG:
-          if (state->arg_num >= 1)
-            /* Too many arguments. */
-            argp_usage(state);
-          break;
-
-        default:
-          return ARGP_ERR_UNKNOWN;
-        }
-    return 0;
-}
-
-void parse_args(int argc, char *argv[]) {
-    /* Program documentation. */
-    static char doc[] = "Sentinel:DeviceToken - Turris:Sentinel Device Token utility";
-
-    static struct argp_option options[] = {
-        {"create",   'c', 0,               0, "Create new device token and "
-                                              "print it to stdout" },
-        {"validate", 'v', "device_token",  0, "Validate existing device token. "
-                                              "Return 0 on success. Also print "
-                                              "the result to stdout" },
-        {"quite",    'q', 0,               0, "Enable quite mode" },
-        { 0 }
-    };
-
-    /* Our argp parser. */
-    static struct argp argp = { options, parse_opt, 0, doc };
-    argp_parse(&argp, argc, argv, 0, 0, NULL);
+	struct conf *c = (struct conf *)state->input;
+	switch (key) {
+		case 'c':
+			c->action = CREATE;
+			break;
+		case 'v':
+			c->action = VALIDATE;
+			c->device_token = arg;
+			break;
+		case 'q':
+			c->quiet = true;
+			break;
+		default:
+		  return ARGP_ERR_UNKNOWN;
+	}
+	return 0;
 }
 
 int main(int argc, char *argv[]) {
-    parse_args(argc, argv);
-    char *device_token;
-    int verification_status;
-    switch(conf.action) {
-        case CREATE:
-            device_token = device_token_generate();
-            printf("%s\n", device_token);
-            free(device_token);
-            break;
-        case VALIDATE:
-            verification_status = device_token_verify(conf.device_token);
-            if (!conf.quite)
-                fprintf(stderr, "%s\n",
-                        device_token_state_msg(verification_status));
-            return verification_status;
-    }
-    return 0;
+	struct conf conf = {
+		.action = NO_ACTION
+	};
+	struct argp argp = {
+		.options = options,
+		.parser = parse_opt,
+		.doc = doc
+	};
+	argp_parse(&argp, argc, argv, 0, 0, &conf);
+	char *device_token;
+	enum dt_state verification_status;
+	switch(conf.action) {
+		case CREATE:
+			device_token = device_token_generate();
+			printf("%s\n", device_token);
+			free(device_token);
+			break;
+		case VALIDATE:
+			verification_status = device_token_verify(conf.device_token);
+			if (!conf.quiet)
+				fprintf(stderr, "%s\n",
+						device_token_state_msg(verification_status));
+			return (int)verification_status;
+	}
+	return 0;
 }

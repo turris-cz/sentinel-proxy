@@ -1,4 +1,4 @@
-image: registry.labs.nic.cz/turris/sentinel/proxy
+image: registry.nic.cz/turris/sentinel/proxy
 
 stages:
   - build

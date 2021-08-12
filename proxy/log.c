@@ -18,4 +18,4 @@
 
 #include "log.h"
 
-APP_LOG(sentinel_proxy)
+APP_LOG(sentinel_proxy);

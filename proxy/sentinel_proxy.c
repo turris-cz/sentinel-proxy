@@ -26,12 +26,15 @@ int main(int argc, char *argv[]) {
 	struct proxy_conf proxy_conf;
 	init_conf(&proxy_conf);
 	load_conf(argc, argv, &proxy_conf);
+	
 	struct mqtt mqtt;
 	struct zmq zmq;
 	zloop_t *zloop = zloop_new();
 	init_mqtt(&mqtt, zloop, &proxy_conf);
 	init_zmq(&zmq, &mqtt, zloop, proxy_conf.zmq_sock_path);
+
 	zloop_start(zloop);
+	
 	destroy_zmq(&zmq);
 	destroy_mqtt(&mqtt);
 	zloop_destroy(&zloop);

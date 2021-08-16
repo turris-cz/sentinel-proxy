@@ -29,7 +29,7 @@ RUN \
 RUN \
   git clone --branch "v0.2.1" "https://gitlab.nic.cz/turris/logc.git" && \
   cd logc && \
-  ./bootstrap && ./configure --disable-tests --disable-linters --prefix=/usr && \
+  ./bootstrap && ./configure --prefix=/usr && \
   make install && \
   cd .. && \
   rm -rf logc

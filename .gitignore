@@ -47,3 +47,9 @@ autom4te.cache
 /libtool
 # http://www.gnu.org/software/texinfo
 /texinfo.tex
+
+# test keys and certificates
+tests/manual/ca1_certs/
+tests/manual/ca2_certs/
+tests/manual/keys/
+tests/manual/self_sign_certs/

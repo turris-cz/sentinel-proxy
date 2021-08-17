@@ -1,56 +1,68 @@
 MY_DIR = %reldir%/generated
 
+CONF_DIR = %reldir%/ca_conf
+
+KEYS_DIR = %reldir%/keys
+SELF_SIGNED_CERT_DIR = %reldir%/self_sign_certs
+CA1_CERTS_DIR = %reldir%/ca1_certs
+CA2_CERTS_DIR = %reldir%/ca2_certs
+
+
+SIGN_REQS_DIR = %reldir%/sign_reqs
+CA1_DIR = %reldir%/ca1
+CA2_DIR = %reldir%/ca2
+
 gen-test-certs:
-	rm -rf $(MY_DIR)
-	mkdir -p $(MY_DIR)/{keys,self_signed_certs,sign-reqs,ca1/{db,newcerts},ca2/{db,newcerts},ca1_certs,ca2_certs}
+	rm -rf $(KEYS_DIR) $(SELF_SIGNED_CERT_DIR) $(CA1_CERTS_DIR) \
+		$(CA2_CERTS_DIR) $(CA1_DIR) $(CA2_DIR) $(SIGN_REQS_DIR)
 
-	openssl ecparam -genkey -name secp384r1 -out $(MY_DIR)/keys/ca1.pem
+	mkdir -p $(KEYS_DIR) $(SELF_SIGNED_CERT_DIR) $(CA1_CERTS_DIR) \
+		$(CA2_CERTS_DIR)  $(SIGN_REQS_DIR) $(CA1_DIR)/{db,newcerts} \
+		$(CA2_DIR)/{db,newcerts}
 
-	openssl req -new -x509 -config %reldir%/conf/ca1.cnf -days 3650 \
-		-key $(MY_DIR)/keys/ca1.pem -out $(MY_DIR)/ca1_certs/ca1.pem
-	touch $(MY_DIR)/ca1/db/index.txt
-	echo 01 > $(MY_DIR)/ca1/db/serial
+	openssl ecparam -genkey -name secp384r1 -out $(KEYS_DIR)/ca1.pem
+	openssl req -new -x509 -config $(CONF_DIR)/ca1.cnf -days 3650 \
+		-key $(KEYS_DIR)/ca1.pem -out $(CA1_CERTS_DIR)/ca1.pem
+	touch $(CA1_DIR)/db/index.txt
+	echo 01 > $(CA1_DIR)/db/serial
 
-	openssl ecparam -genkey -name secp384r1 -out $(MY_DIR)/keys/ca2.pem
-	openssl req -new -x509 -config %reldir%/conf/ca2.cnf -days 3650 \
-		-key $(MY_DIR)/keys/ca2.pem -out $(MY_DIR)/ca2_certs/ca2.pem
-	touch $(MY_DIR)/ca2/db/index.txt
-	echo 01 > $(MY_DIR)/ca2/db/serial
+	openssl ecparam -genkey -name secp384r1 -out $(KEYS_DIR)/ca2.pem
+	openssl req -new -x509 -config $(CONF_DIR)/ca2.cnf -days 3650 \
+		-key $(KEYS_DIR)/ca2.pem -out $(CA2_CERTS_DIR)/ca2.pem
+	touch $(CA2_DIR)/db/index.txt
+	echo 01 > $(CA2_DIR)/db/serial
 
-	openssl ecparam -genkey -name prime256v1 -out $(MY_DIR)/keys/mosquitto.pem
+	openssl ecparam -genkey -name prime256v1 -out $(KEYS_DIR)/mosquitto.pem
 	openssl req -new -batch -subj '/CN=mosquitto.lan' \
-		-key $(MY_DIR)/keys/mosquitto.pem \
-		-out $(MY_DIR)/sign-reqs/mosquitto.pem
-	openssl ca -config %reldir%/conf/ca1.cnf -batch -extensions server_ext \
-		-in $(MY_DIR)/sign-reqs/mosquitto.pem \
-		-out $(MY_DIR)/ca1_certs/mosquitto.pem
-	openssl ca -config %reldir%/conf/ca2.cnf -batch -extensions server_ext \
-		-in $(MY_DIR)/sign-reqs/mosquitto.pem \
-		-out $(MY_DIR)/ca2_certs/mosquitto.pem
-	openssl x509 -signkey $(MY_DIR)/keys/mosquitto.pem \
-		-in $(MY_DIR)/sign-reqs/mosquitto.pem -req -days 365 \
-		-out $(MY_DIR)/self_signed_certs/mosquitto.pem
+		-key $(KEYS_DIR)/mosquitto.pem \
+		-out $(SIGN_REQS_DIR)/mosquitto.pem
+	openssl ca -config $(CONF_DIR)/ca1.cnf -batch -extensions server_ext \
+		-in $(SIGN_REQS_DIR)/mosquitto.pem -out $(CA1_CERTS_DIR)/mosquitto.pem
+	openssl ca -config $(CONF_DIR)/ca2.cnf -batch -extensions server_ext \
+		-in $(SIGN_REQS_DIR)/mosquitto.pem -out $(CA2_CERTS_DIR)/mosquitto.pem
+	openssl x509 -req -days 365 -signkey $(KEYS_DIR)/mosquitto.pem \
+		-in $(SIGN_REQS_DIR)/mosquitto.pem \
+		-out $(SELF_SIGNED_CERT_DIR)/mosquitto.pem
 
-	openssl ecparam -genkey -name prime256v1 -out $(MY_DIR)/keys/proxy.pem
+	openssl ecparam -genkey -name prime256v1 -out $(KEYS_DIR)/proxy.pem
 	openssl req -new -batch -subj '/CN=proxy' \
-		-key $(MY_DIR)/keys/proxy.pem -out $(MY_DIR)/sign-reqs/proxy.pem
-	openssl ca -config %reldir%/conf/ca1.cnf -batch -extensions client_ext \
-		-in $(MY_DIR)/sign-reqs/proxy.pem -out $(MY_DIR)/ca1_certs/proxy.pem
-	openssl ca -config %reldir%/conf/ca2.cnf -batch -extensions client_ext \
-		-in $(MY_DIR)/sign-reqs/proxy.pem -out $(MY_DIR)/ca2_certs/proxy.pem
-	openssl x509 -signkey $(MY_DIR)/keys/proxy.pem \
-		-in $(MY_DIR)/sign-reqs/proxy.pem -req -days 365 \
-		-out $(MY_DIR)/self_signed_certs/proxy.pem
+		-key $(KEYS_DIR)/proxy.pem -out $(SIGN_REQS_DIR)//proxy.pem
+	openssl ca -config $(CONF_DIR)/ca1.cnf -batch -extensions client_ext \
+		-in $(SIGN_REQS_DIR)/proxy.pem -out $(CA1_CERTS_DIR)/proxy.pem
+	openssl ca -config $(CONF_DIR)/ca2.cnf -batch -extensions client_ext \
+		-in $(SIGN_REQS_DIR)/proxy.pem -out $(CA2_CERTS_DIR)/proxy.pem
+	openssl x509 -req -days 365 -signkey $(KEYS_DIR)/proxy.pem \
+		-in $(SIGN_REQS_DIR)/proxy.pem -out $(SELF_SIGNED_CERT_DIR)/proxy.pem
 
-	openssl ecparam -genkey -name prime256v1 -out $(MY_DIR)/keys/smash.pem
+	openssl ecparam -genkey -name prime256v1 -out $(KEYS_DIR)/smash.pem
 	openssl req -new -batch -subj '/CN=smash' \
-		-key $(MY_DIR)/keys/smash.pem -out $(MY_DIR)/sign-reqs/smash.pem
-	openssl ca -config %reldir%/conf/ca1.cnf -batch -extensions client_ext \
-		-in $(MY_DIR)/sign-reqs/smash.pem -out $(MY_DIR)/ca1_certs/smash.pem
-	openssl ca -config %reldir%/conf/ca2.cnf -batch -extensions client_ext \
-		-in $(MY_DIR)/sign-reqs/smash.pem -out $(MY_DIR)/ca2_certs/smash.pem
-	openssl x509 -signkey $(MY_DIR)/keys/smash.pem \
-		-in $(MY_DIR)/sign-reqs/smash.pem -req -days 365 \
-		-out $(MY_DIR)/self_signed_certs/smash.pem
-
-	rm -rf $(MY_DIR)/{ca1,ca2,sign-reqs}
+		-key $(KEYS_DIR)/smash.pem -out $(SIGN_REQS_DIR)//smash.pem
+	openssl ca -config $(CONF_DIR)/ca1.cnf -batch -extensions client_ext \
+		-in $(SIGN_REQS_DIR)/smash.pem -out $(CA1_CERTS_DIR)/smash.pem
+	openssl ca -config $(CONF_DIR)/ca2.cnf -batch -extensions client_ext \
+		-in $(SIGN_REQS_DIR)/smash.pem -out $(CA2_CERTS_DIR)/smash.pem
+	openssl x509 -req -days 365 -signkey $(KEYS_DIR)/smash.pem \
+		-in $(SIGN_REQS_DIR)/smash.pem -out $(SELF_SIGNED_CERT_DIR)/smash.pem
+	
+	rm -rf $(CA1_DIR) $(CA2_DIR) $(SIGN_REQS_DIR)
+	rm -rf $(KEYS_DIR)/{ca1.pem,ca2.pem}

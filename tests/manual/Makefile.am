@@ -1,13 +1,9 @@
-MY_DIR = %reldir%/generated
-
+# NOTE: paths must match CAs configurations in folder .ca_conf/ 
 CONF_DIR = %reldir%/ca_conf
-
 KEYS_DIR = %reldir%/keys
 SELF_SIGNED_CERT_DIR = %reldir%/self_sign_certs
 CA1_CERTS_DIR = %reldir%/ca1_certs
 CA2_CERTS_DIR = %reldir%/ca2_certs
-
-
 SIGN_REQS_DIR = %reldir%/sign_reqs
 CA1_DIR = %reldir%/ca1
 CA2_DIR = %reldir%/ca2

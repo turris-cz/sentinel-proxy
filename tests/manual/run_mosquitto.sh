@@ -1,3 +1,4 @@
 #!/bin/sh
+
 /usr/sbin/mosquitto \
-	--config-file ./broker.conf
+	--config-file ./mosquitto.conf

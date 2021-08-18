@@ -1,5 +1,8 @@
 #!/bin/sh
+
 topic="sentinel/collect/generator$$"
+socket="ipc:///tmp/proxy_input.sock"
+
 ./input_generator.py \
-	--socket ipc:///tmp/sentinel_pull.sock \
+	--socket $socket \
 	--topic $topic

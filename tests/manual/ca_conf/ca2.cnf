@@ -11,7 +11,7 @@ new_certs_dir   = $dir/ca2/newcerts
 unique_subject  = no
 
 # certificates options -------------------------------------
-default_days    = 360
+default_days    = 365
 # use public-key default method
 default_md      = default
 

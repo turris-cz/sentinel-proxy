@@ -8,10 +8,13 @@ SIGN_REQS_DIR = %reldir%/sign_reqs
 CA1_DIR = %reldir%/ca1
 CA2_DIR = %reldir%/ca2
 
-gen-test-certs:
+clean-test-certs:
 	rm -rf $(KEYS_DIR) $(SELF_SIGNED_CERT_DIR) $(CA1_CERTS_DIR) \
-		$(CA2_CERTS_DIR) $(CA1_DIR) $(CA2_DIR) $(SIGN_REQS_DIR)
+		$(CA2_CERTS_DIR) $(CA1_DIR) $(CA2_DIR) $(SIGN_REQS_DIR) 
 
+clean-local: clean-test-certs
+
+gen-test-certs: clean-test-certs
 	mkdir -p $(KEYS_DIR) $(SELF_SIGNED_CERT_DIR) $(CA1_CERTS_DIR) \
 		$(CA2_CERTS_DIR)  $(SIGN_REQS_DIR) $(CA1_DIR)/{db,newcerts} \
 		$(CA2_DIR)/{db,newcerts}
@@ -30,8 +33,7 @@ gen-test-certs:
 
 	openssl ecparam -genkey -name prime256v1 -out $(KEYS_DIR)/mosquitto.pem
 	openssl req -new -batch -subj '/CN=mosquitto.lan' \
-		-key $(KEYS_DIR)/mosquitto.pem \
-		-out $(SIGN_REQS_DIR)/mosquitto.pem
+		-key $(KEYS_DIR)/mosquitto.pem -out $(SIGN_REQS_DIR)/mosquitto.pem
 	openssl ca -config $(CONF_DIR)/ca1.cnf -batch -extensions server_ext \
 		-in $(SIGN_REQS_DIR)/mosquitto.pem -out $(CA1_CERTS_DIR)/mosquitto.pem
 	openssl ca -config $(CONF_DIR)/ca2.cnf -batch -extensions server_ext \

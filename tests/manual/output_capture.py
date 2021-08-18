@@ -32,7 +32,6 @@ def my_argparser(argparser):
                            required=True,
                            type=str,
                            help="File with key for TLS connection")
-
     return argparser
 
 

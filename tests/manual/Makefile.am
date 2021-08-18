@@ -1,4 +1,4 @@
-# NOTE: paths must match CAs configurations in folder .ca_conf/ 
+# NOTE: paths must match CAs configurations in folder ./ca_conf/ 
 CONF_DIR = %reldir%/ca_conf
 KEYS_DIR = %reldir%/keys
 SELF_SIGNED_CERT_DIR = %reldir%/self_sign_certs
@@ -17,13 +17,13 @@ gen-test-certs:
 		$(CA2_DIR)/{db,newcerts}
 
 	openssl ecparam -genkey -name secp384r1 -out $(KEYS_DIR)/ca1.pem
-	openssl req -new -x509 -config $(CONF_DIR)/ca1.cnf -days 3650 \
+	openssl req -new -x509 -config $(CONF_DIR)/ca1.cnf -days 365 \
 		-key $(KEYS_DIR)/ca1.pem -out $(CA1_CERTS_DIR)/ca1.pem
 	touch $(CA1_DIR)/db/index.txt
 	echo 01 > $(CA1_DIR)/db/serial
 
 	openssl ecparam -genkey -name secp384r1 -out $(KEYS_DIR)/ca2.pem
-	openssl req -new -x509 -config $(CONF_DIR)/ca2.cnf -days 3650 \
+	openssl req -new -x509 -config $(CONF_DIR)/ca2.cnf -days 365 \
 		-key $(KEYS_DIR)/ca2.pem -out $(CA2_CERTS_DIR)/ca2.pem
 	touch $(CA2_DIR)/db/index.txt
 	echo 01 > $(CA2_DIR)/db/serial
@@ -60,5 +60,4 @@ gen-test-certs:
 	openssl x509 -req -days 365 -signkey $(KEYS_DIR)/smash.pem \
 		-in $(SIGN_REQS_DIR)/smash.pem -out $(SELF_SIGNED_CERT_DIR)/smash.pem
 	
-	rm -rf $(CA1_DIR) $(CA2_DIR) $(SIGN_REQS_DIR)
-	rm -rf $(KEYS_DIR)/{ca1.pem,ca2.pem}
+	rm -rf $(CA1_DIR) $(CA2_DIR) $(SIGN_REQS_DIR) $(KEYS_DIR)/{ca1.pem,ca2.pem}

@@ -22,11 +22,10 @@
 #include "log.h"
 
 int main(int argc, char *argv[]) {
-	log_sentinel_proxy->name = PACKAGE_NAME;
 	struct proxy_conf proxy_conf;
 	init_conf(&proxy_conf);
 	load_conf(argc, argv, &proxy_conf);
-	
+
 	struct mqtt mqtt;
 	struct zmq zmq;
 	zloop_t *zloop = zloop_new();
@@ -34,7 +33,7 @@ int main(int argc, char *argv[]) {
 	init_zmq(&zmq, &mqtt, zloop, proxy_conf.zmq_sock_path);
 
 	zloop_start(zloop);
-	
+
 	destroy_zmq(&zmq);
 	destroy_mqtt(&mqtt);
 	zloop_destroy(&zloop);

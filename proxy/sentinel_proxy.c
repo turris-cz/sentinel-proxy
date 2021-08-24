@@ -29,6 +29,7 @@ int main(int argc, char *argv[]) {
 	struct mqtt mqtt;
 	struct zmq zmq;
 	zloop_t *zloop = zloop_new();
+	assert(zloop);
 	init_mqtt(&mqtt, zloop, &proxy_conf);
 	init_zmq(&zmq, &mqtt, zloop, proxy_conf.zmq_sock_path);
 

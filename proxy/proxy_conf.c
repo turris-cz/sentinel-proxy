@@ -197,7 +197,6 @@ void load_config_file(const char *path, struct proxy_conf *conf) {
 
 void init_conf(struct proxy_conf *conf) {
 	TRACE_FUNC;
-	assert(conf);
 	conf->disable_serv_check = false;
 	conf->mqtt_port = DEFAULT_PORT;
 
@@ -237,9 +236,6 @@ void load_conf(int argc, char *argv[], struct proxy_conf *conf) {
 	// load config file if exists end is readable. If that is succesfull we have
 	// to load cli params once more - since they have higher priority.
 	TRACE_FUNC;
-	assert(argc > 0);
-	assert(argv);
-	assert(conf);
 	port_once_parsed = false;
 	load_cli_opts(argc, argv, conf);
 	if (is_accessible(conf->config_file)) {

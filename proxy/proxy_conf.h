@@ -49,7 +49,7 @@ struct proxy_conf {
 
 // Converts C NULL terminated string representing port number (0 - 65535) to integer value .
 // If string contains invalid port value it returns -1.
-int parse_port(const char *str);
+int parse_port(const char *str) __attribute__((nonnull));
 
 // Copies new_strl_len bytes of new_str to *orig_str and puts NULL terminating
 // char at the end of new_str. In case new_str_len + 1 is bigger than
@@ -58,22 +58,24 @@ int parse_port(const char *str);
 // Before first use on any *orig_str, its memory MUST be first allocated
 // by malloc() and *orig_str_mem_len initialized accordingly.
 void set_field(char **orig_str, size_t *orig_str_mem_len, const char *new_str,
-	size_t new_str_len);
+	size_t new_str_len) __attribute__((nonnull));
 
 // Loads configuration from CLI options and their arguments.
 // conf struct MUST be first properly initialized by init_conf().
-void load_cli_opts(int argc, char *argv[], struct proxy_conf *conf);
+void load_cli_opts(int argc, char *argv[], struct proxy_conf *conf)
+__attribute__((nonnull));
 
 // Loads configuration from given configuration file.
 // conf struct MUST be first properly initialized by init_conf().
-void load_config_file(const char *path, struct proxy_conf *conf);
+void load_config_file(const char *path, struct proxy_conf *conf)
+__attribute__((nonnull));
 
 
 // NOTE: This is public API intended for normal use.
 
 // Allocates memory for conf struct fields and initializes them with default values.
 // DOES assert check for conf.
-void init_conf(struct proxy_conf *conf);
+void init_conf(struct proxy_conf *conf) __attribute__((nonnull));
 
 // Loads configuration from CLI options and configuration file.
 // conf struct MUST be first properly initialized by init_conf().
@@ -82,7 +84,8 @@ void init_conf(struct proxy_conf *conf);
 // CLI options have higher priority than conf. file, which has higher priority
 // than default configuration.
 // DOES assert check for conf, argv and argc.
-void load_conf(int argc, char *argv[], struct proxy_conf *conf);
+void load_conf(int argc, char *argv[], struct proxy_conf *conf)
+__attribute__((nonnull));
 
 // If conf is NOT NULL frees all the memory hold by conf struct fields.
 void destroy_conf(struct proxy_conf *conf);

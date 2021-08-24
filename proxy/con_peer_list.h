@@ -37,22 +37,23 @@ struct con_peer_list {
 // fd is set to -1. topic stores ptr to memory allocated by malloc with exactly
 // ZMQ_MAX_TOPIC_LEN bytes.
 // DOES assert check for p.
-void init_peer(struct con_peer *p);
+void init_peer(struct con_peer *p) __attribute__((nonnull));
 
 // Sets attributes of conn_peer struct. topic is copied by memcpy and NULL
 // string terminating char is put at topic[topic_len]. Caller is responsible
 // that topic_len is NOT greater than memory allocated by init_peer().
 // DOES assert check for p and topic.
-void set_peer(struct con_peer *p, int fd, char *topic, size_t topic_len);
+void set_peer(struct con_peer *p, int fd, char *topic, size_t topic_len)
+__attribute__((nonnull));
 
 // If p is not NULL frees memory allocated by init_peer().
-void destroy_peer(struct con_peer *p);
+void destroy_peer(struct con_peer *p) __attribute__((nonnull));
 
 // Initializes statically or dynamically allocated con_peer_list struct.
 // Allocates memory for CON_PERR_LIST_DEFAULT_LEN of peers and initialize
 // all the peers.
 // DOES assert check for list.
-void init_con_peer_list(struct con_peer_list *list);
+void init_con_peer_list(struct con_peer_list *list) __attribute__((nonnull));
 
 // Adds peer to the first free spot in the list. The free peer spot has fd == -1.
 // If there is no free spot, more memory is allocated for the new peers.
@@ -61,11 +62,12 @@ void init_con_peer_list(struct con_peer_list *list);
 // It copies topic with given len to internal peer struct.
 // It puts NULL string terminating char at the end of topic.
 // DOES assert check for list and topic.
-void add_peer(struct con_peer_list *list, int fd, char *topic, size_t topic_len);
+void add_peer(struct con_peer_list *list, int fd, char *topic, size_t topic_len)
+__attribute__((nonnull));
 
 // Deletes the first peer with given fd in the list by setting the fd to -1.
 // DOES assert check for list.
-void del_peer(struct con_peer_list *list, int fd);
+void del_peer(struct con_peer_list *list, int fd) __attribute__((nonnull));
 
 // Calls destroy_peer() on all the peers in the list.
 // DOES assert check for list.

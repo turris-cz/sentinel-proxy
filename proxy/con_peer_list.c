@@ -21,15 +21,12 @@
 
 void init_peer(struct con_peer *p) {
 	TRACE_FUNC;
-	assert(p);
 	p->fd = -1;
 	p->topic = malloc(CON_PER_TOPIC_MEM_LEN * sizeof(*p->topic));
 }
 
 void set_peer(struct con_peer *p, int fd, char *topic, size_t topic_len) {
 	TRACE_FUNC;
-	assert(p);
-	assert(topic);
 	p->fd = fd;
 	memcpy(p->topic, topic, topic_len);
 	p->topic[topic_len] = '\0';
@@ -43,7 +40,6 @@ void destroy_peer(struct con_peer *p) {
 
 void init_con_peer_list(struct con_peer_list *list) {
 	TRACE_FUNC;
-	assert(list);
 	list->alloc_size = CON_PERR_LIST_DEFAULT_LEN;
 	list->peers = malloc(list->alloc_size * sizeof(*list->peers));
 	for (size_t i = 0; i < list->alloc_size; i++)
@@ -52,8 +48,6 @@ void init_con_peer_list(struct con_peer_list *list) {
 
 void add_peer(struct con_peer_list *list, int fd, char *topic, size_t topic_len) {
 	TRACE_FUNC;
-	assert(list);
-	assert(topic);
 	bool added = false;
 	for (size_t i = 0; i < list->alloc_size; i++)
 		if (list->peers[i].fd == -1) {
@@ -77,7 +71,6 @@ void add_peer(struct con_peer_list *list, int fd, char *topic, size_t topic_len)
 
 void del_peer(struct con_peer_list *list, int fd) {
 	TRACE_FUNC;
-	assert(list);
 	for(size_t i = 0; i < list->alloc_size; i++) {
 		if (list->peers[i].fd == fd) {
 			info("Disconnected peer with topic %s and session ID %d",

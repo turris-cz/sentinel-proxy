@@ -23,8 +23,6 @@
 #include <string.h>
 #include <device_token.h>
 
-#define DEV_TOKEN_MEM_LEN (DEVICE_TOKEN_LEN + 1)
-
 struct proxy_conf {
 	bool disable_serv_check;
 	int mqtt_port;
@@ -58,7 +56,6 @@ __attribute__((nonnull));
 // NOTE: This is public API intended for normal use.
 
 // Allocates memory for conf struct fields and initializes them with default values.
-// DOES assert check for conf.
 void init_conf(struct proxy_conf *conf) __attribute__((nonnull));
 
 // Loads configuration from CLI options and configuration file.
@@ -67,7 +64,6 @@ void init_conf(struct proxy_conf *conf) __attribute__((nonnull));
 // CLi options > configuration file > default conf
 // CLI options have higher priority than conf. file, which has higher priority
 // than default configuration.
-// DOES assert check for conf, argv and argc.
 void load_conf(int argc, char *argv[], struct proxy_conf *conf)
 __attribute__((nonnull));
 

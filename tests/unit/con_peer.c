@@ -40,7 +40,7 @@ START_TEST(set_peer_test) {
 	int fd = 454;
 	char *topic = "test topic";
 	size_t topic_len = strlen(topic);
-	set_peer(&con_peer, fd, topic, topic_len);
+	set_peer(&con_peer, fd, topic);
 	ck_assert_int_eq(con_peer.fd, fd);
 	ck_assert_mem_eq(con_peer.topic, topic, topic_len);
 }

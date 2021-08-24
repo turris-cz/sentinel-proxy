@@ -57,7 +57,7 @@ START_TEST(add_test) {
 	for(size_t i = 0; i < (sizeof(peers) / sizeof(*peers)); i++) {
 		// add peer 
 		size_t t_len = strlen(peers[i].topic);
-		add_peer(&con_peer_list, peers[i].fd, peers[i].topic, t_len);
+		add_peer(&con_peer_list, peers[i].fd, peers[i].topic);
 
 		// find peer in the list
 		bool is_there = false;
@@ -87,8 +87,7 @@ START_TEST(add_test2) {
 		{4, "poipjljlfjsldjflsjdfk"},
 	};
 	for(size_t i = 0; i < CON_PERR_LIST_DEFAULT_LEN; i++)
-		add_peer(&con_peer_list, peers[i].fd, peers[i].topic,
-			strlen(peers[i].topic));
+		add_peer(&con_peer_list, peers[i].fd, peers[i].topic);
 
 	ck_assert_uint_eq(con_peer_list.alloc_size, CON_PERR_LIST_DEFAULT_LEN);
 }
@@ -104,8 +103,7 @@ START_TEST(add_test3) {
 		{5, "advavdnbavsndvansdvnasvd"},
 	};
 	for(size_t i = 0; i < LEN; i++)
-		add_peer(&con_peer_list, peers[i].fd, peers[i].topic,
-			strlen(peers[i].topic));
+		add_peer(&con_peer_list, peers[i].fd, peers[i].topic);
 
 	ck_assert_uint_eq(con_peer_list.alloc_size, CON_PERR_LIST_DEFAULT_LEN * 2);
 
@@ -118,8 +116,7 @@ START_TEST(add_test3) {
 START_TEST(del_test) {
 	// add peers
 	for(size_t i = 0; i < (sizeof(peers) / sizeof(*peers)); i++)
-		add_peer(&con_peer_list, peers[i].fd, peers[i].topic,
-			strlen(peers[i].topic));
+		add_peer(&con_peer_list, peers[i].fd, peers[i].topic);
 	// delete peers
 	for(size_t i = 0; i < (sizeof(peers) / sizeof(*peers)); i++) {
 		int fd = peers[i].fd;

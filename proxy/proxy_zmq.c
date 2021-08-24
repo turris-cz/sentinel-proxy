@@ -61,7 +61,7 @@ int recv_data_cb(zloop_t *loop, zsock_t *reader, void *arg) {
 		// WARNING: __fd is NOT official nor documented use of czmq API !!!
 		// It can potentionally change at any time.  
 		add_peer(zmq->con_peer_list, atoi(zframe_meta(topic_frame, "__fd")),
-			(char *)topic, topic_len);
+			(char *)topic);
 	}
 	if (msg_size == 2) {
 		// Normal message with data

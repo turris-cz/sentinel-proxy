@@ -28,46 +28,6 @@ static void setup() {
 	init_conf(&proxy_conf);
 }
 
-static void teardown() {
-	destroy_conf(&proxy_conf);
-}
-
-START_TEST(set_field_test1) {
-	// initial memory size is greater than new string length
-	size_t mem_len = 20;
-	char *str = malloc(mem_len);
-	memset(str, '7', mem_len);
-	char *new_str = "abcds";
-	set_field(&str, &mem_len, new_str, strlen(new_str));
-	ck_assert_str_eq(str, new_str);
-	ck_assert_uint_eq(mem_len, 20);
-	free(str);
-}
-
-START_TEST(set_field_test2) {
-	// initial memory size is lower than new string length
-	size_t mem_len = 1;
-	char *str = malloc(mem_len);
-	memset(str, 'a', mem_len);
-	char new_str[] = "abcds";
-	set_field(&str, &mem_len, new_str, strlen(new_str));
-	ck_assert_str_eq(str, new_str);
-	ck_assert_uint_eq(mem_len, sizeof(new_str));
-	free(str);
-}
-
-START_TEST(set_field_test3) {
-	// initial memory size is same as new string length
-	size_t mem_len = 6;
-	char *str = malloc(mem_len);
-	memset(str, 'c', mem_len);
-	char new_str[] = "abcds";
-	set_field(&str, &mem_len, new_str, strlen(new_str));
-	ck_assert_str_eq(str, new_str);
-	ck_assert_uint_eq(mem_len, sizeof(new_str));
-	free(str);
-}
-
 START_TEST(parse_port_test_valid) {
 	ck_assert_int_eq(parse_port("12345"), 12345);
 }
@@ -86,23 +46,14 @@ START_TEST(init_test) {
 	ck_assert_int_eq(proxy_conf.disable_serv_check, false);
 	ck_assert_int_eq(proxy_conf.mqtt_port, DEFAULT_PORT);
 	ck_assert_str_eq(proxy_conf.mqtt_broker, DEFAULT_SERVER);
-	ck_assert_int_eq(proxy_conf.mqtt_broker_len, sizeof(DEFAULT_SERVER));
 	ck_assert_str_eq(proxy_conf.mqtt_client_cert_file,
 		DEFAULT_MQTT_CLIENT_CERT_FILE);
-	ck_assert_int_eq(proxy_conf.mqtt_cl_cert_f_len,
-		sizeof(DEFAULT_MQTT_CLIENT_CERT_FILE));
 	ck_assert_str_eq(proxy_conf.mqtt_client_key_file,
 		DEFAULT_MQTT_CLIENT_KEY_FILE);
-	ck_assert_int_eq(proxy_conf.mqtt_cl_key_f_len,
-		sizeof(DEFAULT_MQTT_CLIENT_KEY_FILE));
 	ck_assert_str_eq(proxy_conf.ca_cert_file, DEFAULT_CA_CERT_FILE);
-	ck_assert_int_eq(proxy_conf.ca_cert_f_len, sizeof(DEFAULT_CA_CERT_FILE));
 	ck_assert_str_eq(proxy_conf.zmq_sock_path, DEFAULT_ZMQ_SOCK_PATH);
-	ck_assert_int_eq(proxy_conf.zmq_sock_p_len, sizeof(DEFAULT_ZMQ_SOCK_PATH));
 	ck_assert_str_eq(proxy_conf.config_file, DEFAULT_CONFIG_FILE);
-	ck_assert_int_eq(proxy_conf.conf_f_len, sizeof(DEFAULT_CONFIG_FILE));
-	ck_assert_str_eq(proxy_conf.device_token, "");
-	ck_assert_int_eq(proxy_conf.dt_len, DEV_TOKEN_MEM_LEN);
+	ck_assert_ptr_eq(proxy_conf.device_token, NULL);
 }
 
 static char *get_test_config_file_path() {
@@ -173,19 +124,13 @@ __attribute__((constructor))
 static void suite() {
 	Suite *suite = suite_create("proxy_conf");
 	
-	TCase *set_field_tc = tcase_create("set_field");
-	tcase_add_test(set_field_tc, set_field_test1);
-	tcase_add_test(set_field_tc, set_field_test2);
-	tcase_add_test(set_field_tc, set_field_test3);
-	suite_add_tcase(suite, set_field_tc);
-
 	TCase *parse_port_tc = tcase_create("parse_port");
 	tcase_add_test(parse_port_tc, parse_port_test_valid);
 	tcase_add_test(parse_port_tc, parse_port_test_invalid);
 	suite_add_tcase(suite, parse_port_tc);
 
 	TCase *conf_tc = tcase_create("conf");
-	tcase_add_checked_fixture(conf_tc, setup, teardown);
+	tcase_add_checked_fixture(conf_tc, setup, NULL);
 	tcase_add_test(conf_tc, init_test);
 	tcase_add_test(conf_tc, load_config_file_test);
 	tcase_add_test(conf_tc, load_cli_opts_test);

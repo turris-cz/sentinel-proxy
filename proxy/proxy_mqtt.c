@@ -248,9 +248,6 @@ void get_client_id(const char *filename, char **id) {
 
 void init_mqtt(struct mqtt *mqtt, zloop_t *zloop, const struct proxy_conf *conf) {
 	TRACE_FUNC;
-	assert(mqtt);
-	assert(zloop);
-	assert(conf);
 	get_client_id(conf->mqtt_client_cert_file, &mqtt->client_id);
 	build_data_topic(&mqtt->data_topic, &mqtt->data_topic_prefix_end,
 		mqtt->client_id, conf->device_token);

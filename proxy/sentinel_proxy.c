@@ -38,6 +38,5 @@ int main(int argc, char *argv[]) {
 	destroy_zmq(&zmq);
 	destroy_mqtt(&mqtt);
 	zloop_destroy(&zloop);
-	destroy_conf(&proxy_conf);
 	return 0;
 }

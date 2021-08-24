@@ -26,7 +26,7 @@
 #define xstr(s) str(s)
 #define str(s) #s
 
-#define CONF_FIELD_SEREVR "server"
+#define CONF_FIELD_SERVER "server"
 #define CONF_FIELD_PORT "port"
 #define CONF_FIELD_CL_CERT_FILE "client_cert_file"
 #define CONF_FIELD_CL_KEY_FILE "client_key_file"
@@ -70,17 +70,6 @@ void verify_access(const char *filename) {
 		critical("%s can't be accessed.", filename);
 }
 
-void set_field(char **orig_str, size_t *orig_str_mem_len,
-		const char *new_str, size_t new_str_len) {
-	TRACE_FUNC;
-	if ((new_str_len + 1) > *orig_str_mem_len) {
-		*orig_str_mem_len = new_str_len + 1;
-		*orig_str = realloc(*orig_str, *orig_str_mem_len);
-	}
-	memcpy(*orig_str, new_str, new_str_len);
-	(*orig_str)[new_str_len] = '\0';
-}
-
 int parse_port(const char *str) {
 	TRACE_FUNC;
 	char *end_ptr;
@@ -102,8 +91,7 @@ error_t parse_opt (int key, char *arg, struct argp_state *state) {
 	int tmp;
 	switch (key) {
 		case 'S':
-			set_field(&conf->mqtt_broker, &conf->mqtt_broker_len, arg,
-				strlen(arg));
+			conf->mqtt_broker = arg;
 			break;
 		case 'p':
 			if ((tmp = parse_port(arg)) == -1) {
@@ -111,30 +99,25 @@ error_t parse_opt (int key, char *arg, struct argp_state *state) {
 					warning("Port has invalid value. Ignoring this option.\nUsing configuration file or further default port instead");
 			} else
 				conf->mqtt_port = tmp;
-			// to don't print warning twice
 			port_once_parsed = true;
 			break;
 		case 's':
-			set_field(&conf->zmq_sock_path, &conf->zmq_sock_p_len, arg,
-				strlen(arg));
+			conf->zmq_sock_path = arg;
 			break;
 		case 'c':
-			set_field(&conf->ca_cert_file, &conf->ca_cert_f_len, arg,
-				strlen(arg));
+			conf->ca_cert_file = arg;
 			break;
 		case 'C':
-			set_field(&conf->mqtt_client_cert_file, &conf->mqtt_cl_cert_f_len,
-				arg, strlen(arg));
+			conf->mqtt_client_cert_file = arg;
 			break;
 		case 'K':
-			set_field(&conf->mqtt_client_key_file, &conf->mqtt_cl_key_f_len,
-				arg, strlen(arg));
+			conf->mqtt_client_key_file = arg;
 			break;
 		case 't':
-			set_field(&conf->device_token, &conf->dt_len, arg, strlen(arg));
+			conf->device_token = arg;
 			break;
 		case 'f':
-			set_field(&conf->config_file, &conf->conf_f_len, arg, strlen(arg));
+			conf->config_file = arg;
 			break;
 		case 'd':
 			conf->disable_serv_check = true;
@@ -162,36 +145,36 @@ void load_cli_opts(int argc, char *argv[], struct proxy_conf *conf) {
 }
 
 void load_conf_str(const config_t *cf, const char *name, char **dest,
-		size_t *dest_mem_len) {
+		const char *def) {
 	TRACE_FUNC;
 	const char *tmp = NULL;
-	if (config_lookup_string(cf, name, &tmp) == CONFIG_TRUE)
-		set_field(dest, dest_mem_len, tmp, strlen(tmp));
+	if (config_lookup_string(cf, name, &tmp) == CONFIG_TRUE
+		&& (def == NULL || !strcmp(*dest, def)))
+		*dest = strdup(tmp);
 }
 
 void load_config_file(const char *path, struct proxy_conf *conf) {
 	TRACE_FUNC;
 	config_t cfg;
 	config_init(&cfg);
-	if(config_read_file(&cfg, path) != CONFIG_TRUE){
+	if (config_read_file(&cfg, path) != CONFIG_TRUE) {
 		warning("Wrong syntax in config file: %s on line %d: %s.\nIgnoring config file. Using CLI options or further default configuration instead.",
 			path, config_error_line(&cfg), config_error_text(&cfg));
 		config_destroy(&cfg);
 		return;
 	}
-	load_conf_str(&cfg, CONF_FIELD_DEVICE_TOKEN, &conf->device_token,
-		&conf->dt_len);
-	load_conf_str(&cfg, CONF_FIELD_SEREVR, &conf->mqtt_broker,
-		&conf->mqtt_broker_len);
+	load_conf_str(&cfg, CONF_FIELD_DEVICE_TOKEN, &conf->device_token, NULL);
+	load_conf_str(&cfg, CONF_FIELD_SERVER, &conf->mqtt_broker, DEFAULT_SERVER);
 	load_conf_str(&cfg, CONF_FIELD_CL_CERT_FILE, &conf->mqtt_client_cert_file,
-		&conf->mqtt_cl_cert_f_len);
+		DEFAULT_MQTT_CLIENT_CERT_FILE);
 	load_conf_str(&cfg, CONF_FIELD_CL_KEY_FILE, &conf->mqtt_client_key_file,
-		&conf->mqtt_cl_key_f_len);
+		DEFAULT_MQTT_CLIENT_KEY_FILE);
 	load_conf_str(&cfg, CONF_FIELD_CA_CERT_FILE, &conf->ca_cert_file,
-		&conf->ca_cert_f_len);
+		DEFAULT_CA_CERT_FILE);
 	load_conf_str(&cfg, CONF_FIELD_ZMQ_SOCK_PATH, &conf->zmq_sock_path,
-		&conf->zmq_sock_p_len);
-	config_lookup_int(&cfg, CONF_FIELD_PORT, &conf->mqtt_port);
+		DEFAULT_ZMQ_SOCK_PATH);
+	if (conf->mqtt_port == DEFAULT_PORT)
+		config_lookup_int(&cfg, CONF_FIELD_PORT, &conf->mqtt_port);
 	config_destroy(&cfg);
 }
 
@@ -199,36 +182,13 @@ void init_conf(struct proxy_conf *conf) {
 	TRACE_FUNC;
 	conf->disable_serv_check = false;
 	conf->mqtt_port = DEFAULT_PORT;
-
-	conf->dt_len = DEV_TOKEN_MEM_LEN;
-	conf->device_token = malloc(conf->dt_len);
-	conf->device_token[0] = '\0';
-
-	conf->mqtt_broker_len = sizeof(DEFAULT_SERVER);
-	conf->mqtt_broker = malloc(conf->mqtt_broker_len);
-	memcpy(conf->mqtt_broker, DEFAULT_SERVER, conf->mqtt_broker_len);
-
-	conf->zmq_sock_p_len = sizeof(DEFAULT_ZMQ_SOCK_PATH);
-	conf->zmq_sock_path = malloc(conf->zmq_sock_p_len);
-	memcpy(conf->zmq_sock_path, DEFAULT_ZMQ_SOCK_PATH, conf->zmq_sock_p_len);
-
-	conf->ca_cert_f_len = sizeof(DEFAULT_CA_CERT_FILE);
-	conf->ca_cert_file = malloc(conf->ca_cert_f_len);
-	memcpy(conf->ca_cert_file, DEFAULT_CA_CERT_FILE, conf->ca_cert_f_len);
-
-	conf->mqtt_cl_cert_f_len = sizeof(DEFAULT_MQTT_CLIENT_CERT_FILE);
-	conf->mqtt_client_cert_file = malloc(conf->mqtt_cl_cert_f_len);
-	memcpy(conf->mqtt_client_cert_file, DEFAULT_MQTT_CLIENT_CERT_FILE,
-		conf->mqtt_cl_cert_f_len);
-
-	conf->mqtt_cl_key_f_len = sizeof(DEFAULT_MQTT_CLIENT_KEY_FILE);
-	conf->mqtt_client_key_file = malloc(conf->mqtt_cl_key_f_len);
-	memcpy(conf->mqtt_client_key_file, DEFAULT_MQTT_CLIENT_KEY_FILE,
-		conf->mqtt_cl_key_f_len);
-
-	conf->conf_f_len = sizeof(DEFAULT_CONFIG_FILE);
-	conf->config_file = malloc(conf->conf_f_len);
-	memcpy(conf->config_file, DEFAULT_CONFIG_FILE, conf->conf_f_len);
+	conf->device_token = NULL;
+	conf->mqtt_broker = DEFAULT_SERVER;
+	conf->zmq_sock_path =  DEFAULT_ZMQ_SOCK_PATH;
+	conf->ca_cert_file =  DEFAULT_CA_CERT_FILE;
+	conf->mqtt_client_cert_file =  DEFAULT_MQTT_CLIENT_CERT_FILE;
+	conf->mqtt_client_key_file = DEFAULT_MQTT_CLIENT_KEY_FILE;
+	conf->config_file =  DEFAULT_CONFIG_FILE;
 }
 
 void load_conf(int argc, char *argv[], struct proxy_conf *conf) {
@@ -268,17 +228,4 @@ void load_conf(int argc, char *argv[], struct proxy_conf *conf) {
 	else
 		// we need CA cert only if server check is enabled
 		info("Sentinel CA certificate: %s", conf->ca_cert_file);
-}
-
-void destroy_conf(struct proxy_conf *conf) {
-	TRACE_FUNC;
-	if (conf) {
-		free(conf->device_token);
-		free(conf->mqtt_broker);
-		free(conf->zmq_sock_path);
-		free(conf->ca_cert_file);
-		free(conf->mqtt_client_cert_file);
-		free(conf->mqtt_client_key_file);
-		free(conf->config_file);
-	}
 }

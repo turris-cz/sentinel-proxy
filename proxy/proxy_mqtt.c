@@ -49,7 +49,7 @@ void compose_sentinel_mesg(msgpack_sbuffer *sbuff, msgpack_packer *pk,
 	msgpack_pack_long_long(pk, mesg->ts);
 }
 
-void mqtt_connect(struct mqtt *mqtt);
+void mqtt_connect(struct mqtt *mqtt) __attribute__((nonnull));
 
 int mqtt_client_yeld_cb(zloop_t *loop, int timer_id, void *arg) {
 	// It must return 0. If -1 is returned event loop is terminated.
@@ -62,7 +62,7 @@ int mqtt_client_yeld_cb(zloop_t *loop, int timer_id, void *arg) {
 	return 0;
 }
 
-void send_heartbeat(struct mqtt *mqtt) {
+__attribute__((nonnull)) void send_heartbeat(struct mqtt *mqtt) {
 	TRACE_FUNC;
 	mqtt->status_mesg->action = HEARTBEAT_EV;
 	mqtt->status_mesg->ts = time(NULL);
@@ -80,7 +80,7 @@ int sentinel_heartbeat_cb(zloop_t *loop, int timer_id, void *arg) {
 	return 0;
 }
 
-void mqtt_connect(struct mqtt *mqtt) {
+__attribute__((nonnull)) void mqtt_connect(struct mqtt *mqtt) {
 	TRACE_FUNC;
 	if (MQTTClient_connect(mqtt->client, mqtt->conn_opts) == MQTTCLIENT_SUCCESS) {
 		info("Connected to MQTT broker");
@@ -107,7 +107,7 @@ void mqtt_connect(struct mqtt *mqtt) {
 	}
 }
 
-void send_disconnect(struct mqtt *mqtt) {
+__attribute__((nonnull)) void send_disconnect(struct mqtt *mqtt) {
 	TRACE_FUNC;
 	mqtt->status_mesg->action = DISCONNECT_EV;
 	mqtt->status_mesg->ts = time(NULL);
@@ -118,7 +118,7 @@ void send_disconnect(struct mqtt *mqtt) {
 	msgpack_sbuffer_clear(mqtt->sbuff);
 }
 
-void mqtt_disconnect(struct mqtt *mqtt) {
+__attribute__((nonnull)) void mqtt_disconnect(struct mqtt *mqtt) {
 	TRACE_FUNC;
 	zloop_timer_end(mqtt->zloop, mqtt->sentinel_heartbeat_timer_id);
 	zloop_timer_end(mqtt->zloop, mqtt->mqtt_keep_alive_timer_id);
@@ -142,6 +142,7 @@ void compose_last_will(msgpack_sbuffer *sbuff, msgpack_packer *pk) {
 	// Time stamp is added later by Sentinel Smash
 }
 
+__attribute__((nonnull))
 void client_setup(const struct proxy_conf *conf, struct mqtt *mqtt) {
 	TRACE_FUNC;
 	MQTTClient_SSLOptions ssl_opts = MQTTClient_SSLOptions_initializer;

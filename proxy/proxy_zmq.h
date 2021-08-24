@@ -47,7 +47,7 @@ int check_msg(size_t frames, unsigned char *topic, size_t topic_len);
 // For the subsequent data PULLing from ZMQ endpoint and forwarding them to given
 // MQTT client, passed event loop MUST be started after calling this. 
 void init_zmq(struct zmq *zmq, struct mqtt *mqtt, zloop_t *zloop,
-	const char *sock_path);
+	const char *sock_path) __attribute__((nonnull));
 
 // If zmq is not NULL, removes all callbacks from event loop, destroys ZMQ
 // PULL socket and ZMQ socket monitor and frees all the memory hold by zmq.

@@ -90,10 +90,6 @@ int monitor_cb(zloop_t *loop, zsock_t *reader, void *arg) {
 void init_zmq(struct zmq *zmq, struct mqtt *mqtt ,zloop_t *zloop,
 		const char *sock_path) {
 	TRACE_FUNC;
-	assert(zmq);
-	assert(mqtt);
-	assert(zloop);
-	assert(sock_path);
 	zmq->data_sock = zsock_new(ZMQ_PULL);
 	assert(zmq->data_sock);
 	zmq->monitor = zactor_new(zmonitor, zmq->data_sock);

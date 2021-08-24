@@ -144,7 +144,6 @@ void load_cli_opts(int argc, char *argv[], struct proxy_conf *conf) {
 	argp_parse(&argp, argc, argv, 0, 0, conf);
 }
 
-__attribute__((nonnull))
 void load_conf_str(const config_t *cf, const char *name, char **dest,
 		const char *def) {
 	TRACE_FUNC;

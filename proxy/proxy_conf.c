@@ -59,12 +59,12 @@ static const struct argp_option options[] = {
 };
 static bool port_once_parsed;
 
-bool is_accessible(const char *filename) {
+__attribute__((nonnull)) bool is_accessible(const char *filename) {
 	TRACE_FUNC;
 	return (access(filename, R_OK) == 0);
 }
 
-void verify_access(const char *filename) {
+__attribute__((nonnull)) void verify_access(const char *filename) {
 	TRACE_FUNC;
 	if (!is_accessible(filename))
 		critical("%s can't be accessed.", filename);
@@ -144,6 +144,7 @@ void load_cli_opts(int argc, char *argv[], struct proxy_conf *conf) {
 	argp_parse(&argp, argc, argv, 0, 0, conf);
 }
 
+__attribute__((nonnull))
 void load_conf_str(const config_t *cf, const char *name, char **dest,
 		const char *def) {
 	TRACE_FUNC;

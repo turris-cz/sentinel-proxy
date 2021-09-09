@@ -1,6 +1,8 @@
 lib_LTLIBRARIES = \
 	libsentinel-device-token.la
-libsentinel_device_token_la_LDFLAGS = -version-info 1:0:0
+libsentinel_device_token_la_LDFLAGS = \
+	-version-info 1:0:0 \
+	$(LIBCRYPTO_LIBS)
 
 libsentineldir = $(includedir)/sentinel
 libsentinel_HEADERS = \

@@ -41,7 +41,7 @@ int main(void) {
 	char *test_output_xml = getenv("TEST_OUTPUT_XML");
 	if (test_output_xml && *test_output_xml != '\0')
 		srunner_set_xml(runner, test_output_xml);
-	srunner_set_fork_status(runner, CK_FORK); // We have to fork to catch signals
+	srunner_set_fork_status(runner, CK_NOFORK);
 
 	srunner_run_all(runner, CK_NORMAL);
 	int failed = srunner_ntests_failed(runner);

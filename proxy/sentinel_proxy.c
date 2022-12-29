@@ -16,12 +16,17 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <czmq_logc.h>
+
 #include "proxy_conf.h"
 #include "proxy_zmq.h"
 #include "proxy_mqtt.h"
 #include "log.h"
 
 int main(int argc, char *argv[]) {
+	log_bind(log_sentinel_proxy, log_czmq);
+	logc_czmq_init();
+
 	struct proxy_conf proxy_conf;
 	init_conf(&proxy_conf);
 	load_conf(argc, argv, &proxy_conf);
@@ -38,5 +43,8 @@ int main(int argc, char *argv[]) {
 	destroy_zmq(&zmq);
 	destroy_mqtt(&mqtt);
 	zloop_destroy(&zloop);
+
+	logc_czmq_cleanup();
+	log_unbind(log_czmq);
 	return 0;
 }

@@ -22,12 +22,6 @@
 
 #include "../../proxy/proxy_conf.h"
 
-static struct proxy_conf proxy_conf;
-
-static void setup() {
-	init_conf(&proxy_conf);
-}
-
 START_TEST(parse_port_test_valid) {
 	ck_assert_int_eq(parse_port("12345"), 12345);
 }
@@ -43,7 +37,9 @@ START_TEST(parse_port_test_invalid) {
 }
 
 START_TEST(init_test) {
-	// init is done by setup() in proxy_conf_fixtures
+	struct proxy_conf proxy_conf;
+	init_conf(&proxy_conf);
+
 	ck_assert_int_eq(proxy_conf.disable_serv_check, false);
 	ck_assert_int_eq(proxy_conf.mqtt_port, DEFAULT_PORT);
 	ck_assert_str_eq(proxy_conf.mqtt_broker, DEFAULT_SERVER);
@@ -67,6 +63,9 @@ static char *get_test_config_file_path() {
 }
 
 START_TEST(load_config_file_test) {
+	struct proxy_conf proxy_conf;
+	init_conf(&proxy_conf);
+
 	char *config_file = get_test_config_file_path();
 	// load_config_file("./tests/unit/test_config.cfg", &proxy_conf);
 	load_config_file(config_file, &proxy_conf);
@@ -84,9 +83,19 @@ START_TEST(load_config_file_test) {
 	ck_assert_str_eq(proxy_conf.device_token,
 		"fffffffffffffffffffffffffffffffffffffffffff");
 	free(config_file);
+
+	free(proxy_conf.device_token);
+	free(proxy_conf.mqtt_broker);
+	free(proxy_conf.mqtt_client_cert_file);
+	free(proxy_conf.mqtt_client_key_file);
+	free(proxy_conf.ca_cert_file);
+	free(proxy_conf.zmq_sock_path);
 }
 
 START_TEST(load_cli_opts_test) {
+	struct proxy_conf proxy_conf;
+	init_conf(&proxy_conf);
+
 	char server[] = "adsasdasdasdasdasdasd";
 	char port[] = "12345";
 	char socket[] = "iuhk";
@@ -131,7 +140,6 @@ static void suite() {
 	suite_add_tcase(suite, parse_port_tc);
 
 	TCase *conf_tc = tcase_create("conf");
-	tcase_add_checked_fixture(conf_tc, setup, NULL);
 	tcase_add_test(conf_tc, init_test);
 	tcase_add_test(conf_tc, load_config_file_test);
 	tcase_add_test(conf_tc, load_cli_opts_test);

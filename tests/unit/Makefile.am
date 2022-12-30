@@ -20,7 +20,7 @@ check_PROGRAMS += %reldir%/unittests
 %canon_reldir%_unittests_LDADD = \
 	$(sentinel_proxy_LDADD)
 
-AM_TESTS_ENVIRONMENT = export DATA_DIR="$(top_srcdir)/%reldir%/data/";
+AM_TESTS_ENVIRONMENT = export DATA_DIR="$(top_srcdir)/%reldir%/data/"; export CK_FORK=yes;
 
 dist-hook:
 	cp -rf "$(top_srcdir)/%reldir%/data/" "$(distdir)/%reldir%/data/"

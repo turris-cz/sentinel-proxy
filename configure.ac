@@ -99,3 +99,6 @@ AX_CODE_COVERAGE
 AC_CONFIG_FILES([Makefile device-token/libsentinel-device-token.pc])
 
 AC_OUTPUT
+
+dnl check mode - default to fork
+export CK_FORK=yes

@@ -4,7 +4,6 @@ check_PROGRAMS =
 include %reldir%/unit/Makefile.am
 include %reldir%/manual/Makefile.am
 
-
 LOG_DRIVER = \
 	env AM_TAP_AWK='$(AWK)' TEST_OUTPUT_TAP="/dev/stdout" \
 	'$(SHELL)' '$(srcdir)/.aux/tap-driver.sh'
@@ -20,7 +19,6 @@ VALGRIND_memcheck_FLAGS = \
 @VALGRIND_CHECK_RULES@
 
 # Rules generated for valgrind are for some reason called *-am. This is just an alias
-check-valgrind: check-valgrind-am
 define check_valgrind_rule
 check-valgrind-$(1): check-valgrind-$(1)-am
 endef

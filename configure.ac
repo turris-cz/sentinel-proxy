@@ -10,7 +10,7 @@ AM_INIT_AUTOMAKE([
 AM_SILENT_RULES([yes])
 
 AC_PROG_CC
-AC_GNU_SOURCE
+AC_USE_SYSTEM_EXTENSIONS
 AM_PROG_AR
 LT_INIT
 PKG_INSTALLDIR
@@ -77,7 +77,7 @@ AC_DEFINE_UNQUOTED([DEFAULT_MQTT_CLIENT_KEY_FILE], ["${defmqttclientkeyfile}"],
 
 
 dnl Tests
-AC_ARG_ENABLE([tests], AC_HELP_STRING([--enable-tests], [Whether to enable unit tests]))
+AC_ARG_ENABLE([tests], AS_HELP_STRING([--enable-tests], [Whether to enable unit tests]))
 AM_CONDITIONAL([ENABLE_TESTS], [test "x$enable_tests" = "xyes"])
 AS_IF([test "x$enable_tests" = "xyes"], [
   PKG_CHECK_MODULES([check], [check >= 0.11])
@@ -86,7 +86,7 @@ AS_IF([test "x$enable_tests" = "xyes"], [
 AX_VALGRIND_CHECK
 
 dnl Linters
-AC_ARG_ENABLE([linters], AC_HELP_STRING([--enable-linters], [Whether to enable code linting support (cppcheck)]))
+AC_ARG_ENABLE([linters], AS_HELP_STRING([--enable-linters], [Whether to enable code linting support (cppcheck)]))
 AM_CONDITIONAL([ENABLE_LINTERS], [test "x$enable_linters" = "xyes"])
 AS_IF([test "x$enable_linters" = "xyes"], [
   AC_PATH_PROG([CPPCHECK], [cppcheck])

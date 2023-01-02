@@ -1,5 +1,5 @@
 AC_INIT([sentinel-proxy], [1.4], [tech.support@turris.cz])
-AC_CONFIG_MACRO_DIRS([.m4])
+AC_CONFIG_MACRO_DIRS([.m4 m4])
 AC_CONFIG_AUX_DIR([.aux])
 
 AM_INIT_AUTOMAKE([
@@ -99,6 +99,3 @@ AX_CODE_COVERAGE
 AC_CONFIG_FILES([Makefile device-token/libsentinel-device-token.pc])
 
 AC_OUTPUT
-
-dnl check mode - default to fork
-export CK_FORK=yes

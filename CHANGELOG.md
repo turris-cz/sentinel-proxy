@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Removed
 - dev folder
 
+## Fixed
+- device token library - inputs checks
+- runnig unit tests in valgrind in no fork mode
+- autotools warnings
+
 ## [2.0.0] - 2022-12-30
 ### Added
 - logc - logging support

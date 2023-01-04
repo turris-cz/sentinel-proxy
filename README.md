@@ -12,6 +12,7 @@ It relays messages received over ZMQ to Sentinel server over MQTT.
  - [msgpack](https://github.com/msgpack/msgpack-c)
  - [logc](https://gitlab.nic.cz/turris/logc)
  - [logc_czmq](https://gitlab.nic.cz/turris/logc-libs)
+ - [openssl CLI tool](https://github.com/openssl/openssl)
  - On non-glibc [argp-standalone](http://www.lysator.liu.se/~nisse/misc)
 
 For build:

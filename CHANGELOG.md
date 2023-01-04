@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - device token unit tests
 - list of times of last received messages for each topic
 
+## Removed
+- dev folder
+
 ## [2.0.0] - 2022-12-30
 ### Added
 - logc - logging support

@@ -50,7 +50,8 @@ When you do not use distribution archive then you have to run initially
 
 ### Unit
 
-Unit tests are in directory `tests/unit` . To run all tests you can just simply run:
+Unit tests are in directory `tests/unit` . To run all tests you can just simply
+run:
 `make check`
 
 You can also run tests with Valgrind:
@@ -79,23 +80,23 @@ sentinel-proxy [--ca-cert=ca_cert_file] [--cl-cert=client_cert_file]
 ```
 
 All parameters except device token have default values.
-These values can be overridden by values loaded from config file and CLI options. 
-Device token can be only specified either by CLI option or in configuration file.
-For information about device token and how to generate it please see next section.  
-The priorities of configuration are following:
-CLI options > configuration file > default values.
-CLI options have higher priority than conf. file, which has in turn higher
-priority than default configuration.
+These values can be overridden by values loaded from config file and CLI
+options. Device token can be only specified either by CLI option or in
+configuration file. For information about device token and how to generate
+it please see next section. The priorities of configuration are following:
+CLI options > configuration file > default values. CLI options have higher
+priority than conf. file, which has in turn higher priority than default
+configuration.
 
 Configuration file absence is silently ignored until it is explicitly passed as
 a CLI option. In such a case it's absence would end up in error state.
 
 # Sentinel-device-token
 
-It is a library and a small CLI utility which purpose is to generate and validate
-device token. Device token is 64 hex character long string used to uniquely
-and anonymously identify a user of Sentinel for purposes of following provided
-services.
+It is a library and a small CLI utility which purpose is to generate and
+validate device token. Device token is 64 hex character long string used to
+uniquely and anonymously identify a user of Sentinel for purposes of following
+provided services.
 
 To generate a new device token and print it to standard output run:
 ```

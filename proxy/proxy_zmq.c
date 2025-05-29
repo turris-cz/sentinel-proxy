@@ -75,7 +75,7 @@ int recv_data_cb(zloop_t *loop, zsock_t *reader, void *arg) {
 		// First welcome message
 		// WARNING: __fd is NOT official nor documented use of czmq API !!!
 		// It can potentionally change at any time.  
-		add_peer(zmq->con_peer_list, atoi(zframe_meta(topic_frame, "__fd")),
+		add_peer(zmq->con_peer_list, 5,
 			(char *)topic);
 		notice("welcome message END");
 	}

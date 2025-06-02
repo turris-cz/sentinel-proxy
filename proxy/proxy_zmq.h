@@ -21,7 +21,6 @@
 #include <czmq.h>
 
 #include "proxy_mqtt.h"
-#include "con_peer_list.h"
 #include "last_msg_list.h"
 
 struct zmq {
@@ -29,7 +28,6 @@ struct zmq {
 	zactor_t *monitor;
 	zloop_t *zloop;
 	struct mqtt *mqtt;
-	struct con_peer_list *con_peer_list;
 	struct last_msg_list *last_msg_list;
 };
 

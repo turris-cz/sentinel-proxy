@@ -3,8 +3,6 @@ bin_PROGRAMS += sentinel-proxy
 
 proxy_sources = \
 	%reldir%/common.h \
-	%reldir%/con_peer_list.h \
-	%reldir%/con_peer_list.c \
 	%reldir%/log.h \
 	%reldir%/log.c \
 	%reldir%/proxy_conf.h \

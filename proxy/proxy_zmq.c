@@ -59,10 +59,7 @@ int recv_data_cb(zloop_t *loop, zsock_t *reader, void *arg) {
 	struct zmq *zmq = (struct zmq *)arg;
 	if (msg_size == 1) {
 		// First welcome message
-		// WARNING: __fd is NOT official nor documented use of czmq API !!!
-		// It can potentionally change at any time.  
-		add_peer(zmq->con_peer_list, atoi(zframe_meta(topic_frame, "__fd")),
-			(char *)topic);
+		info("Connected peer with topic %s", topic);
 	}
 	if (msg_size == 2) {
 		// Normal message with data
@@ -85,7 +82,7 @@ int monitor_cb(zloop_t *loop, zsock_t *reader, void *arg) {
 	// Message from the monitor has two parts. The first is DISCONNECTED string
 	// and the second is session/connection file descriptor string.
 	zframe_t *frame = zmsg_next(msg);
-	del_peer(((struct zmq *)arg)->con_peer_list, atoi(zframe_data(frame)));
+	info("Disconnected peer with session ID %d", atoi(zframe_data(frame)));
 	zmsg_destroy(&msg);
 	return 0;
 }
@@ -105,8 +102,6 @@ void init_zmq(struct zmq *zmq, struct mqtt *mqtt ,zloop_t *zloop,
 	assert(zloop_reader(zloop, (zsock_t*)zmq->monitor, monitor_cb, zmq) == 0);
 	zmq->mqtt = mqtt;
 	zmq->zloop = zloop;
-	zmq->con_peer_list = malloc(sizeof(*zmq->con_peer_list));
-	init_con_peer_list(zmq->con_peer_list);
 	zmq->last_msg_list = malloc(sizeof(*zmq->last_msg_list));
 	init_last_msg_list(zmq->last_msg_list);
 }
@@ -118,7 +113,6 @@ void destroy_zmq(struct zmq *zmq) {
 		zloop_reader_end(zmq->zloop, (zsock_t*)zmq->monitor);
 		zactor_destroy(&zmq->monitor);
 		zsock_destroy(&zmq->data_sock);
-		destroy_con_peer_list(zmq->con_peer_list);
 		destroy_last_msg_list(zmq->last_msg_list);
 	}
 }

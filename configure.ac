@@ -1,4 +1,4 @@
-AC_INIT([sentinel-proxy], [2.1.1], [tech.support@turris.cz])
+AC_INIT([sentinel-proxy], [2.2.0], [tech.support@turris.cz])
 AC_CONFIG_MACRO_DIRS([.m4 m4])
 AC_CONFIG_AUX_DIR([.aux])
 

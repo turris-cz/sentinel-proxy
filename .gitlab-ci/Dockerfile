@@ -1,7 +1,7 @@
-# Wee need unstable for now because of check version
+# We need unstable for now because of check version
 FROM debian:stable
 
-ENV HOME /root
+ENV HOME=/root
 
 RUN \
   apt-get update && \
@@ -10,7 +10,7 @@ RUN \
     autoconf autoconf-archive automake libtool cmake \
     make pkg-config gcc gperf \
     git ca-certificates \
-    libssl-dev zlib1g-dev libczmq-dev libconfig-dev libmsgpack-dev \
+    libssl-dev zlib1g-dev libczmq-dev libconfig-dev libmsgpack-c-dev \
     check cppcheck valgrind lcov \
     zip xz-utils \
     && \

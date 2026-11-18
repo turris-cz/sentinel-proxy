@@ -89,6 +89,34 @@ START_TEST(verify_failed_crc_test2) {
 	ck_assert_uint_eq(device_token_verify(dt), DT_CRC);
 }
 
+START_TEST(verify_failed_decode_test2) {
+	// dt string consist of random bytes and crc bytes
+	// this is valid device token
+	char dt[] = "7308d293c4f8385976dc946588b7ae3ebf1b5dec0f4c4da3aee504a3ba5494f4";
+	// here we uppercase the whole CRC part (last 8 chars). Even though it
+	// still represents the same value, strtoul() would accept it. The
+	// verification must reject it - device token consists of lowercase
+	// hexachars ONLY.
+	for (size_t i = DEVICE_TOKEN_LEN - 8; i < DEVICE_TOKEN_LEN; i++) {
+		// digits stay as they are - only letters are uppercased
+		if (dt[i] >= 'a' && dt[i] <= 'f')
+			dt[i] = dt[i] - 'a' + 'A';
+	}
+	ck_assert_uint_eq(device_token_verify(dt), DT_DECODE);
+}
+
+START_TEST(verify_failed_decode_test3) {
+	// dt string consist of random bytes and crc bytes
+	// this is valid device token
+	char dt[] = "7308d293c4f8385976dc946588b7ae3ebf1b5dec0f4c4da3aee504a3ba5494f4";
+	// here we put a "0x" prefix at the beginning of the CRC part (last
+	// 8 chars). strtoul() would silently skip the prefix and misparse
+	// the CRC - the verification must reject it as invalid hex.
+	dt[DEVICE_TOKEN_LEN - 8] = '0';
+	dt[DEVICE_TOKEN_LEN - 7] = 'x';
+	ck_assert_uint_eq(device_token_verify(dt), DT_DECODE);
+}
+
 struct state_msg {
 	enum dt_state s;
 	const char *msg;
@@ -134,6 +162,8 @@ static void suite() {
 
 	tcase_add_test(basic_tc, verify_failed_crc_test1);
 	tcase_add_test(basic_tc, verify_failed_crc_test2);
+	tcase_add_test(basic_tc, verify_failed_decode_test2);
+	tcase_add_test(basic_tc, verify_failed_decode_test3);
 
 
 	tcase_add_loop_test(basic_tc, get_state_message_valid_test, 0,

@@ -24,6 +24,7 @@ void init_last_msg(struct last_msg *msg) {
 	assert(msg);
 	msg->time_stamp = 0;
 	msg->topic = malloc(LAST_MSG_TOPIC_MEM_LEN * sizeof(*msg->topic));
+	assert(msg->topic);
 	msg->topic[0] = '\0';
 }
 
@@ -48,6 +49,7 @@ void init_last_msg_list(struct last_msg_list *list) {
 	assert(list);
 	list->alloc_size = LAST_MSG_LIST_DEFAULT_LEN;
 	list->messages = malloc(list->alloc_size * sizeof(*list->messages));
+	assert(list->messages);
 	for(size_t i = 0; i < list->alloc_size; i++)
 		init_last_msg(&list->messages[i]);
 }
@@ -57,6 +59,7 @@ void update_last_msg(struct last_msg_list *list, char *topic, size_t topic_len,
 	TRACE_FUNC;
 	assert(list);
 	assert(topic);
+	assert(topic_len <= ZMQ_MAX_TOPIC_LEN);
 	bool updated = false;
 	for (size_t i = 0; i < list->alloc_size; i++) {
 		if (list->messages[i].topic[0] == '\0') {
@@ -66,7 +69,8 @@ void update_last_msg(struct last_msg_list *list, char *topic, size_t topic_len,
 			updated = true;
 			break;
 		}
-		if (!strncmp(topic, list->messages[i].topic, topic_len)) {
+		if (strlen(list->messages[i].topic) == topic_len
+				&& !memcmp(list->messages[i].topic, topic, topic_len)) {
 			// If the message with known topic was received we only update time stamp
 			list->messages[i].time_stamp = ts;
 			updated = true;
@@ -75,10 +79,14 @@ void update_last_msg(struct last_msg_list *list, char *topic, size_t topic_len,
 	}
 	if (!updated) {
 		size_t old_size = list->alloc_size;
-		list->alloc_size *= 2;
-		list->messages = realloc(list->messages, list->alloc_size
-			* sizeof(*list->messages));
-		for(size_t i = old_size; i < list->alloc_size; i++)
+		size_t new_size = list->alloc_size * 2;
+		struct last_msg *new_messages = realloc(list->messages,
+				new_size * sizeof(*new_messages));
+		if (!new_messages)
+			return;  // allocation failed - keep the old list as is
+		list->messages = new_messages;
+		list->alloc_size = new_size;
+		for (size_t i = old_size; i < list->alloc_size; i++)
 			init_last_msg(&list->messages[i]);
 		set_last_msg(&list->messages[old_size], ts, topic, topic_len);
 	}

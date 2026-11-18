@@ -29,14 +29,14 @@
 #define MQTT_QOS_LEVEL 0
 #define MQTT_KEEPALIVE_INTERVAL 60  // seconds
 #define MQTT_KEEPALIVE_TIMEOUT_S (MQTT_KEEPALIVE_INTERVAL / 2) //seconds
-#define MQTT_KEEPALIVE_TIMEOUT_MS (MQTT_KEEPALIVE_TIMEOUT_S * 1000) // miliseconds
-#define MQTT_DISCONNECT_TIMEOUT (5 * 1000) // miliseconds
-#define SENTINEL_HEARTBEAT_TIMEOUT (5 * 60 * 1000) // miliseconds
+#define MQTT_KEEPALIVE_TIMEOUT_MS (MQTT_KEEPALIVE_TIMEOUT_S * 1000) // milliseconds
+#define MQTT_DISCONNECT_TIMEOUT (5 * 1000) // milliseconds
+#define SENTINEL_HEARTBEAT_TIMEOUT (5 * 60 * 1000) // milliseconds
 
 #define PACK_STR(packer, str) do { \
 		msgpack_pack_str(packer, strlen(str)); \
 		msgpack_pack_str_body(packer, str, strlen(str)); \
-	} while(0);
+	} while(0)
 
 void compose_sentinel_mesg(msgpack_sbuffer *sbuff, msgpack_packer *pk,
 		const struct sentinel_status_mesg *mesg) {
@@ -51,7 +51,7 @@ void compose_sentinel_mesg(msgpack_sbuffer *sbuff, msgpack_packer *pk,
 
 void mqtt_connect(struct mqtt *mqtt) __attribute__((nonnull));
 
-int mqtt_client_yeld_cb(zloop_t *loop, int timer_id, void *arg) {
+int mqtt_client_yield_cb(zloop_t *loop, int timer_id, void *arg) {
 	// It must return 0. If -1 is returned event loop is terminated.
 	TRACE_FUNC;
 	struct mqtt *mqtt = (struct mqtt *)arg;
@@ -102,7 +102,7 @@ __attribute__((nonnull)) void mqtt_connect(struct mqtt *mqtt) {
 	// which the application must call regularly
 	if (mqtt->mqtt_keep_alive_timer_id == -1) {
 		mqtt->mqtt_keep_alive_timer_id = zloop_timer(mqtt->zloop,
-			MQTT_KEEPALIVE_TIMEOUT_MS, 0, mqtt_client_yeld_cb, mqtt);
+			MQTT_KEEPALIVE_TIMEOUT_MS, 0, mqtt_client_yield_cb, mqtt);
 		assert(mqtt->mqtt_keep_alive_timer_id != -1);
 	}
 }
@@ -120,16 +120,23 @@ __attribute__((nonnull)) void send_disconnect(struct mqtt *mqtt) {
 
 __attribute__((nonnull)) void mqtt_disconnect(struct mqtt *mqtt) {
 	TRACE_FUNC;
-	zloop_timer_end(mqtt->zloop, mqtt->sentinel_heartbeat_timer_id);
-	zloop_timer_end(mqtt->zloop, mqtt->mqtt_keep_alive_timer_id);
+	if (mqtt->sentinel_heartbeat_timer_id != -1) {
+		zloop_timer_end(mqtt->zloop, mqtt->sentinel_heartbeat_timer_id);
+		mqtt->sentinel_heartbeat_timer_id = -1;
+	}
+	if (mqtt->mqtt_keep_alive_timer_id != -1) {
+		zloop_timer_end(mqtt->zloop, mqtt->mqtt_keep_alive_timer_id);
+		mqtt->mqtt_keep_alive_timer_id = -1;
+	}
 	send_disconnect(mqtt);
 	// leave some time to deliver in-flight messages
-	if (MQTTClient_disconnect(mqtt->client, MQTT_DISCONNECT_TIMEOUT) 
+	if (MQTTClient_disconnect(mqtt->client, MQTT_DISCONNECT_TIMEOUT)
 			== MQTTCLIENT_SUCCESS) {
 		info("Disconnected from MQTT broker");
 	}
-	else
+	else {
 		error("Cannot disconnect from MQTT broker");
+	}
 }
 
 void compose_last_will(msgpack_sbuffer *sbuff, msgpack_packer *pk) {
@@ -202,10 +209,24 @@ void build_data_topic(char **topic_buf, char **topic_prefix_end,
 	TRACE_FUNC;
 	size_t tmp_len = 0;
 	FILE *tmp = open_memstream(topic_buf, &tmp_len);
-	fprintf(tmp, "%s%s/%s/", TOPIC_PREFIX, client_id, device_token);
-	fclose(tmp);
-	// we need more space for topic suffix from received ZMQ message
-	*topic_buf = realloc(*topic_buf, tmp_len + ZMQ_MAX_TOPIC_LEN);
+	if (!tmp)
+		critical("Cannot open memory stream for data topic");
+	if (fprintf(tmp, "%s%s/%s/", TOPIC_PREFIX, client_id,
+			device_token) < 0)
+		critical("Cannot compose data topic");
+	if (fclose(tmp) != 0) {
+		free(*topic_buf);  // do not leak the buffer allocated by memstream
+		*topic_buf = NULL;
+		critical("Cannot compose data topic");
+	}
+	char *new_buf = realloc(*topic_buf, tmp_len + ZMQ_MAX_TOPIC_LEN);
+	if (!new_buf) {
+		free(*topic_buf);
+		*topic_buf = NULL;
+		*topic_prefix_end = NULL;
+		critical("Cannot allocate memory for data topic");
+	}
+	*topic_buf = new_buf;
 	*topic_prefix_end = *topic_buf + tmp_len;
 }
 
@@ -220,16 +241,31 @@ void build_status_topic(char **topic_buf, char *client_id, char *device_token) {
 	TRACE_FUNC;
 	size_t tmp_len = 0;
 	FILE *tmp = open_memstream(topic_buf, &tmp_len);
-	fprintf(tmp, "%s%s/%s/status", TOPIC_PREFIX, client_id, device_token);
-	fclose(tmp);
+	if (!tmp)
+		critical("Cannot open memory stream for status topic");
+	if (fprintf(tmp, "%s%s/%s/status", TOPIC_PREFIX, client_id,
+			device_token) < 0)
+		critical("Cannot compose status topic");
+	if (fclose(tmp) != 0) {
+		free(*topic_buf);
+		*topic_buf = NULL;
+		critical("Cannot compose status topic");
+	}
 }
 
 void build_server_uri(char **uri_buf, char *server, int port) {
 	TRACE_FUNC;
 	size_t tmp_len = 0;
 	FILE *tmp = open_memstream(uri_buf, &tmp_len);
-	fprintf(tmp, "ssl://%s:%d", server, port);
-	fclose(tmp);
+	if (!tmp)
+		critical("Cannot open memory stream for server URI");
+	if (fprintf(tmp, "ssl://%s:%d", server, port) < 0)
+		critical("Cannot compose server URI");
+	if (fclose(tmp) != 0) {
+		free(*uri_buf);
+		*uri_buf = NULL;
+		critical("Cannot compose server URI");
+	}
 }
 
 void get_client_id(const char *filename, char **id) {
@@ -242,6 +278,7 @@ void get_client_id(const char *filename, char **id) {
 	X509_NAME *subject_name = X509_get_subject_name(cert);
 	assert(subject_name);
 	*id = malloc(sizeof(**id) * (MQTT_CLIENT_ID_MAX_LEN + 1));
+	assert(*id);
 	assert(X509_NAME_get_text_by_NID(subject_name, NID_commonName, *id,
 		MQTT_CLIENT_ID_MAX_LEN) != -1);
 	X509_free(cert);
@@ -264,6 +301,7 @@ void init_mqtt(struct mqtt *mqtt, zloop_t *zloop, const struct proxy_conf *conf)
 	assert(mqtt->last_will_payload);
 	msgpack_sbuffer_init(mqtt->last_will_payload);
 	mqtt->status_mesg = malloc(sizeof(*mqtt->status_mesg));
+	assert(mqtt->status_mesg);
 
 	client_setup(conf, mqtt);
 	assert(MQTTClient_create(&mqtt->client,

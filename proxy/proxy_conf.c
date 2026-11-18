@@ -79,7 +79,7 @@ int parse_port(const char *str) {
 			end_ptr == str || // no digits
 			*end_ptr != '\0' || // number in the begining of a text
 			result < 1 || // negative value and zero
-			result > 65335) // max port value
+			result > 65535) // max port value
 		return -1;
 	return (int)result;
 }
@@ -173,8 +173,20 @@ void load_config_file(const char *path, struct proxy_conf *conf) {
 		DEFAULT_CA_CERT_FILE);
 	load_conf_str(&cfg, CONF_FIELD_ZMQ_SOCK_PATH, &conf->zmq_sock_path,
 		DEFAULT_ZMQ_SOCK_PATH);
-	if (conf->mqtt_port == DEFAULT_PORT)
-		config_lookup_int(&cfg, CONF_FIELD_PORT, &conf->mqtt_port);
+	if (conf->mqtt_port == DEFAULT_PORT) {
+		int port;
+		if (config_lookup_int(&cfg, CONF_FIELD_PORT, &port) == CONFIG_TRUE) {
+			char port_str[7];
+			snprintf(port_str, sizeof(port_str), "%d", port);
+			int parsed = parse_port(port_str);
+			if (parsed == -1)
+				warning("Port in config file has invalid value. "
+					"Ignoring it and using default port instead.");
+			else
+				conf->mqtt_port = parsed;
+		}
+	}
+
 	config_destroy(&cfg);
 }
 

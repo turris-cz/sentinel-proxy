@@ -66,6 +66,41 @@ START_TEST(check_msg_test_invalid) {
 		invalid_msgs[_i].topic, invalid_msgs[_i].topic_len), -1);
 }
 
+START_TEST(recv_data_cb_test_welcome_msg_no_nul) {
+	zsock_t *pull = zsock_new(ZMQ_PULL);
+	zsock_t *push = zsock_new(ZMQ_PUSH);
+	ck_assert_ptr_nonnull(pull);
+	ck_assert_ptr_nonnull(push);
+	int port = zsock_bind(pull, "tcp://127.0.0.1:*");
+	ck_assert_int_gt(port, 0);
+	ck_assert_int_eq(zsock_connect(push, "tcp://127.0.0.1:%d", port), 0);
+
+	unsigned char topic[ZMQ_MAX_TOPIC_LEN];
+	memcpy(topic, TOPIC_PREFIX, TOPIC_PREFIX_LEN);
+	memset(topic + TOPIC_PREFIX_LEN, 'A',
+		ZMQ_MAX_TOPIC_LEN - TOPIC_PREFIX_LEN);
+	// whole topic must pass check_msg
+	ck_assert_int_eq(check_msg(1, topic, sizeof(topic)), 0);
+
+	zframe_t *frame = zframe_new(topic, sizeof(topic));
+	ck_assert_ptr_nonnull(frame);
+	ck_assert_int_eq(zframe_send(&frame, push, 0), 0);
+
+	// For a single-frame (welcome) message the callback never dereferences
+	// its arg, so NULL is safe here.
+	ck_assert_int_eq(recv_data_cb(NULL, pull, NULL), 0);
+
+	// The message must have been consumed by the callback - nothing
+	// must be left in the socket queue (non-blocking poll returns NULL)
+	zpoller_t *poller = zpoller_new(pull, NULL);
+	ck_assert_ptr_nonnull(poller);
+	ck_assert_ptr_null(zpoller_wait(poller, 0));
+	zpoller_destroy(&poller);
+
+	zsock_destroy(&pull);
+	zsock_destroy(&push);
+}
+
 void unittests_add_suite(Suite*);
 
 __attribute__((constructor))
@@ -78,6 +113,10 @@ static void suite() {
 	tcase_add_loop_test(check_msg_tc, check_msg_test_invalid, 0,
 		sizeof(invalid_msgs) / sizeof(*invalid_msgs));
 	suite_add_tcase(suite, check_msg_tc);
+
+	TCase *recv_data_cb_tc = tcase_create("recv_data_cb");
+	tcase_add_test(recv_data_cb_tc, recv_data_cb_test_welcome_msg_no_nul);
+	suite_add_tcase(suite, recv_data_cb_tc);
 
 	unittests_add_suite(suite);
 }

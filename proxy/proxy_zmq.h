@@ -38,6 +38,14 @@ struct zmq {
 // correct topic. In case a message is OK returns 0 otherwise -1 is returned.
 int check_msg(size_t frames, unsigned char *topic, size_t topic_len);
 
+// Receives a single ZMQ message from the given reader socket and forwards
+// it to MQTT. A message consists of one topic frame optionally followed
+// by a single data frame. In case of a one-frame (welcome) message only
+// the peer connection is logged. It is primarily used as a zloop reader
+// callback for the data PULL socket. It always returns 0 so that the event
+// loop keeps running.
+int recv_data_cb(zloop_t *loop, zsock_t *reader, void *arg);
+
 // NOTE: This is public API intended for normal use.
 
 // Initializes given zmq struct. It allocates memory, binds to given ZMQ

@@ -21,7 +21,7 @@
 #include <string.h>
 
 #define TOPIC_PREFIX "sentinel/collect/"
-#define TOPIC_PREFIX_LEN strlen(TOPIC_PREFIX)
+#define TOPIC_PREFIX_LEN (sizeof(TOPIC_PREFIX) - 1)
 #define ZMQ_MAX_TOPIC_LEN 256
 
 #endif /*__SENTINEL_PROXY_COMMON_H__*/

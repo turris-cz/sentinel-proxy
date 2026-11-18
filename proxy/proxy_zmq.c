@@ -28,7 +28,7 @@ int check_msg(size_t frames, unsigned char *topic, size_t topic_len) {
 		return -1;
 	}
 	if (frames < 1 || frames > 2) {
-		error("Received and ignoring %ld parts malformed message", frames);
+		error("Received and ignoring %zu parts malformed message", frames);
 		return -1;
 	}
 	if(topic_len <= TOPIC_PREFIX_LEN
@@ -59,7 +59,7 @@ int recv_data_cb(zloop_t *loop, zsock_t *reader, void *arg) {
 	struct zmq *zmq = (struct zmq *)arg;
 	if (msg_size == 1) {
 		// First welcome message
-		info("Connected peer with topic %s", topic);
+		info("Connected peer with topic %.*s", (int)topic_len, topic);
 	}
 	if (msg_size == 2) {
 		// Normal message with data
@@ -78,11 +78,27 @@ int monitor_cb(zloop_t *loop, zsock_t *reader, void *arg) {
 	// It must return 0. If -1 is returned event loop is terminated.
 	TRACE_FUNC;
 	zmsg_t *msg = zmsg_recv(reader);
-	zmsg_first(msg);
+	if (!msg) {
+		error("Cannot receive from monitor socket");
+		return 0;
+	}
 	// Message from the monitor has two parts. The first is DISCONNECTED string
 	// and the second is session/connection file descriptor string.
+	zframe_t *event_frame = zmsg_first(msg);
 	zframe_t *frame = zmsg_next(msg);
-	info("Disconnected peer with session ID %d", atoi(zframe_data(frame)));
+	if (!event_frame || !frame) {
+		error("Received malformed message from monitor, ignoring it");
+		zmsg_destroy(&msg);
+		return 0;
+	}
+	char *session_id = zframe_strdup(frame);
+	if (!session_id) {
+		error("Cannot allocate memory for session ID, ignoring message");
+		zmsg_destroy(&msg);
+		return 0;
+	}
+	info("Disconnected peer with session ID %d", atoi(session_id));
+	free(session_id);
 	zmsg_destroy(&msg);
 	return 0;
 }
@@ -103,6 +119,7 @@ void init_zmq(struct zmq *zmq, struct mqtt *mqtt ,zloop_t *zloop,
 	zmq->mqtt = mqtt;
 	zmq->zloop = zloop;
 	zmq->last_msg_list = malloc(sizeof(*zmq->last_msg_list));
+	assert(zmq->last_msg_list);
 	init_last_msg_list(zmq->last_msg_list);
 }
 
@@ -114,5 +131,6 @@ void destroy_zmq(struct zmq *zmq) {
 		zactor_destroy(&zmq->monitor);
 		zsock_destroy(&zmq->data_sock);
 		destroy_last_msg_list(zmq->last_msg_list);
+		free(zmq->last_msg_list);
 	}
 }

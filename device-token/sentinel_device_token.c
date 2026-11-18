@@ -69,7 +69,9 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
 
 int main(int argc, char *argv[]) {
 	struct conf conf = {
-		.action = NO_ACTION
+		.action = NO_ACTION,
+		.quiet = false,
+		.device_token = NULL
 	};
 	struct argp argp = {
 		.options = options,
@@ -82,6 +84,11 @@ int main(int argc, char *argv[]) {
 	switch(conf.action) {
 		case CREATE:
 			device_token = device_token_generate();
+			if (!device_token) {
+				fprintf(stderr, "Cannot generate device token "
+					"(CSPRNG failure)\n");
+				return 1;
+			}
 			printf("%s\n", device_token);
 			free(device_token);
 			break;

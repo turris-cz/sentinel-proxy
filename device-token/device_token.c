@@ -48,7 +48,7 @@ static uint32_t get_crc(uint8_t *data, unsigned len) {
 	#error Template for outputting CRC bytes has to be updated.
 	#endif
 	uint32_t crc = crc32(0L, Z_NULL, 0);
-	for (int i = 0; i < len; ++i) {
+	for (unsigned i = 0; i < len; ++i) {
 		crc = crc32(crc, data + i, 1);
 	}
 	return crc;
@@ -64,7 +64,7 @@ static inline char val2hex(uint8_t val) {
 }
 
 static inline void bytes2hex(uint8_t *bytes, char *hexastring, unsigned len) {
-	for (int i = 0; i < len; i++) {
+	for (unsigned i = 0; i < len; i++) {
 		hexastring[2*i] = val2hex(bytes[i] >> 4);
 		hexastring[2*i + 1] = val2hex(bytes[i] & 0xf);
 	}
@@ -80,7 +80,7 @@ static inline int hex2val(char hex) {
 
 static inline int hex2bytes(const char *hexastring, uint8_t *bytes, unsigned len) {
 	int val;
-	for (int i = 0; i < len; i++) {
+	for (unsigned i = 0; i < len; i++) {
 		val = hex2val(hexastring[2*i]);
 		if (val < 0)
 			return val;
@@ -96,7 +96,9 @@ static inline int hex2bytes(const char *hexastring, uint8_t *bytes, unsigned len
 
 char *device_token_generate() {
 	uint8_t token_data[RANDOM_BYTES];
-	RAND_priv_bytes(token_data, RANDOM_BYTES);
+	if (RAND_priv_bytes(token_data, RANDOM_BYTES) != 1) {
+		return NULL;
+	}
 
 	uint32_t crc = get_crc(token_data, RANDOM_BYTES);
 
@@ -127,13 +129,27 @@ static enum dt_state check_crc(const char *device_token) {
 		return DT_DECODE;
 
 	uint32_t computed_crc = get_crc(token_data, RANDOM_BYTES);
-	uint32_t provided_crc = (uint32_t)strtoul(device_token + 2*RANDOM_BYTES,
-		NULL, 16);
+
+	// CRC is stored as big endian bytes, same as displayed by "%08x" in
+	// device_token_generate(). Decode it strictly via hex2bytes() to allow
+	// ONLY the canonical lowercase hex form - unlike strtoul() which would
+	// also accept "+", "-", whitespace or "0x" prefixes.
+	#if CRC_BYTES != 4
+	#error Template for parsing CRC bytes has to be updated.
+	#endif
+	uint8_t provided_crc_bytes[CRC_BYTES];
+	if (hex2bytes(device_token + 2*RANDOM_BYTES, provided_crc_bytes,
+			CRC_BYTES) < 0)
+		return DT_DECODE;
+	uint32_t provided_crc =
+		((uint32_t)provided_crc_bytes[0] << 24)
+		| ((uint32_t)provided_crc_bytes[1] << 16)
+		| ((uint32_t)provided_crc_bytes[2] << 8)
+		| (uint32_t)provided_crc_bytes[3];
 
 	if (computed_crc != provided_crc)
 		return DT_CRC;
 	return DT_OK;
-
 }
 
 enum dt_state device_token_verify(const char *device_token) {

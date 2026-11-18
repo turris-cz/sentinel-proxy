@@ -38,7 +38,7 @@ struct proxy_conf {
 // NOTE: This is private API exposed just for the testing.
 // It is NOT supposed to be used anywhere else.
 
-// Converts C NULL terminated string representing port number (0 - 65535) to integer value .
+// Converts C NULL terminated string representing port number (1 - 65535) to integer value.
 // If string contains invalid port value it returns -1.
 int parse_port(const char *str) __attribute__((nonnull));
 

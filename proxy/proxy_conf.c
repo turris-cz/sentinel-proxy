@@ -77,7 +77,7 @@ int parse_port(const char *str) {
 	long result = strtol(str, &end_ptr, 10);
 	if (errno || // conversion error
 			end_ptr == str || // no digits
-			*end_ptr != '\0' || // number in the begining of a text
+			*end_ptr != '\0' || // number in the beginning of a text
 			result < 1 || // negative value and zero
 			result > 65535) // max port value
 		return -1;
@@ -205,7 +205,7 @@ void init_conf(struct proxy_conf *conf) {
 
 void load_conf(int argc, char *argv[], struct proxy_conf *conf) {
 	// We load cli params first (to get config file path most notably) Then we
-	// load config file if exists end is readable. If that is succesfull we have
+	// load config file if exists end is readable. If that is successful we have
 	// to load cli params once more - since they have higher priority.
 	TRACE_FUNC;
 	port_once_parsed = false;

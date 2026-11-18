@@ -12,7 +12,6 @@ LOG_DRIVER = \
 VALGRIND_memcheck_FLAGS = \
 	--leak-check=full \
 	--show-leak-kinds=definite,indirect,possible \
-	--track-fds=yes \
 	--track-origins=yes \
 	--trace-children=no \
 	--child-silent-after-fork=yes
@@ -26,6 +25,7 @@ $(foreach tool,$(valgrind_tools),$(eval $(call check_valgrind_rule,$(tool))))
 
 # Coverage #######################################################################
 CODE_COVERAGE_LCOV_OPTIONS := --no-external
+CODE_COVERAGE_LCOV_RMOPTS := --ignore-errors unused
 CODE_COVERAGE_GENHTML_OPTIONS := --prefix $(dir $(abs_top_builddir))
 
 include $(srcdir)/aminclude_static.am

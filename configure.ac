@@ -22,7 +22,9 @@ PKG_CHECK_MODULES([libcrypto], [libcrypto])
 PKG_CHECK_MODULES([zlib], [zlib])
 PKG_CHECK_MODULES([libczmq], [libczmq])
 PKG_CHECK_MODULES([libconfig], [libconfig])
-PKG_CHECK_MODULES([msgpack], [msgpack])
+PKG_CHECK_MODULES([msgpack], [msgpack-c],
+  [],
+  [PKG_CHECK_MODULES([msgpack], [msgpack])])
 PKG_CHECK_MODULES([logc], [logc >= 0.3.0 logc_argp])
 PKG_CHECK_MODULES([logc_czmq], [libczmq_logc])
 PKG_CHECK_MODULES([openssl], [openssl])
